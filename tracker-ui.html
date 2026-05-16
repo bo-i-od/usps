@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USPS Tracking Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/element-plus/2.9.1/index.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.5.13/vue.global.prod.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/element-plus/2.9.1/index.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f0f2f5; }
+        #app { height: 100%; }
+        .app-container { display: flex; height: 100vh; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 200px; min-width: 200px; background: #1d2b36; color: #fff;
+            overflow-y: auto; display: flex; flex-direction: column; flex-shrink: 0;
+        }
+        .sidebar-logo {
+            padding: 18px 16px 14px; font-size: 15px; font-weight: 700; color: #fff;
+            border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 8px;
+            letter-spacing: 0.5px;
+        }
+        .sidebar-logo .dot { width: 8px; height: 8px; border-radius: 50%; background: #67c23a; display: inline-block; }
+        .sidebar-section-title {
+            padding: 16px 16px 6px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.35);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .sidebar-menu { list-style: none; padding: 4px 0; flex: 1; }
+        .sidebar-menu li {
+            padding: 9px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            font-size: 13px; color: rgba(255,255,255,0.65); transition: all 0.15s; border-left: 3px solid transparent;
+        }
+        .sidebar-menu li:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .sidebar-menu li.active { background: rgba(64,158,255,0.15); color: #409eff; border-left-color: #409eff; }
+        .sidebar-menu li .count {
+            background: rgba(255,255,255,0.1); padding: 1px 7px; border-radius: 10px; font-size: 11px;
+            min-width: 24px; text-align: center; color: rgba(255,255,255,0.5);
+        }
+        .sidebar-menu li.active .count { background: rgba(64,158,255,0.25); color: #409eff; }
+        .sidebar-menu li .status-dot {
+            width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; flex-shrink: 0;
+        }
+        .sidebar-menu li .label-wrap { display: flex; align-items: center; }
+
+        /* Main */
+        .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+        /* Input section */
+        .input-section {
+            background: #fff; padding: 16px 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .input-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .input-header h3 { font-size: 15px; font-weight: 600; color: #333; margin: 0; }
+        .input-body { margin-bottom: 12px; }
+        .input-actions { display: flex; flex-direction: row; gap: 12px; align-items: center; }
+        .query-btn {
+            padding: 10px 32px; background: #409eff; color: #fff; border: none; border-radius: 6px;
+            font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;
+        }
+        .query-btn:hover { background: #337ecc; }
+        .query-btn:disabled { background: #a0cfff; cursor: not-allowed; }
+        .secondary-btn {
+            padding: 8px 16px; background: #fff; color: #606266; border: 1px solid #dcdfe6; border-radius: 6px;
+            font-size: 13px; cursor: pointer;
+        }
+        .secondary-btn:hover { color: #409eff; border-color: #c6e2ff; }
+        .secondary-btn:disabled { color: #c0c4cc; cursor: not-allowed; }
+        .link-btn {
+            padding: 8px 12px; background: none; border: none; color: #409eff; font-size: 13px; cursor: pointer;
+        }
+        .link-btn:hover { color: #337ecc; }
+        .link-btn:disabled { color: #c0c4cc; cursor: not-allowed; }
+        .loading-spinner-sm {
+            display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4);
+            border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+
+        /* Filter bar */
+        .filter-bar {
+            background: #fff; padding: 12px 24px; border-bottom: 1px solid #e8e8e8;
+            display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+        }
+        .filter-bar .result-count { margin-left: auto; font-size: 13px; color: #999; white-space: nowrap; }
+        .filter-bar .result-count strong { color: #409eff; font-size: 14px; }
+
+        /* Content */
+        .content-area { flex: 1; padding: 16px 24px; overflow-y: auto; }
+
+        /* Table */
+        .track-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .track-table thead th {
+            background: #fafafa; padding: 11px 14px; font-size: 13px; font-weight: 600; color: #333;
+            text-align: left; border-bottom: 2px solid #f0f0f0; white-space: nowrap; position: sticky; top: 0; z-index: 1;
+        }
+        .track-table tbody tr { border-bottom: 1px solid #f0f0f0; transition: background 0.12s; }
+        .track-table tbody tr:hover { background: #f5f7fa; }
+        .track-table tbody td { padding: 12px 14px; font-size: 13px; color: #555; vertical-align: top; }
+
+        .tracking-number { color: #409eff; cursor: pointer; font-family: 'Consolas','Courier New', monospace; font-size: 13px; word-break: break-all; }
+        .tracking-number:hover { text-decoration: underline; }
+
+        .status-tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+        .status-delivered { background: #e8f5e9; color: #2e7d32; }
+        .status-transit { background: #e3f2fd; color: #1565c0; }
+        .status-out-for-delivery { background: #fff3e0; color: #e65100; }
+        .status-pre-shipment { background: #f3e5f5; color: #7b1fa2; }
+        .status-alert { background: #fce4ec; color: #c62828; }
+        .status-error { background: #ffebee; color: #b71c1c; }
+        .status-unknown { background: #f5f5f5; color: #757575; }
+
+        .event-list { list-style: none; padding: 0; margin: 0; }
+        .event-list li { padding: 2px 0; font-size: 12px; color: #666; line-height: 1.5; display: flex; gap: 6px; }
+        .event-list li:first-child { color: #333; font-weight: 500; }
+        .event-date { color: #999; white-space: nowrap; font-size: 11px; min-width: 90px; }
+        .event-loc { color: #409eff; font-size: 11px; white-space: nowrap; }
+        .event-desc { flex: 1; }
+        .more-events { color: #409eff; cursor: pointer; font-size: 12px; margin-top: 2px; }
+        .more-events:hover { text-decoration: underline; }
+
+        .pagination-bar { background: #fff; padding: 12px 24px; border-top: 1px solid #e8e8e8; display: flex; justify-content: center; }
+        .bottom-bar { background: #fff; padding: 8px 24px; border-top: 1px solid #e8e8e8; display: flex; align-items: center; gap: 12px; font-size: 12px; color: #999; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: #bbb; }
+        .empty-state p { margin-top: 8px; }
+
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.7);
+            z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .loading-overlay .loading-text { margin-top: 16px; font-size: 15px; color: #409eff; }
+        .loading-overlay .loading-sub { margin-top: 6px; font-size: 13px; color: #999; }
+        .loading-spinner {
+            width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #409eff;
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div id="app">
+    <!-- Loading overlay -->
+    <div class="loading-overlay" v-if="loading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Querying USPS...</div>
+        <div class="loading-sub">{{ queryNumbers.length }} tracking number(s). This may take a while.</div>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-logo">
+                <span class="dot"></span>
+                USPS Tracker
+            </div>
+            <div class="sidebar-section-title">Status Filter</div>
+            <ul class="sidebar-menu">
+                <li v-for="item in sidebarItems" :key="item.key"
+                    :class="{ active: currentFilter === item.key }"
+                    @click="currentFilter = item.key; currentPage = 1">
+                    <span class="label-wrap">
+                        <span class="status-dot" :style="{ background: item.color }"></span>
+                        <span>{{ item.label }}</span>
+                    </span>
+                    <span class="count">{{ item.count }}</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Main Area -->
+        <div class="main-area">
+            <!-- Input Section -->
+            <div class="input-section">
+                <div class="input-header">
+                    <h3>Tracking Numbers</h3>
+                    <el-tag size="small" type="info" v-if="results.length > 0">{{ results.length }} loaded</el-tag>
+                </div>
+                <div class="input-body">
+                    <el-input v-model="inputText" type="textarea" :rows="4"
+                        placeholder="Paste tracking numbers here, one per line"
+                        :disabled="loading" />
+                </div>
+                <div class="input-actions">
+                    <button class="query-btn" @click="doQuery" :disabled="loading || !inputText.trim()">
+                        <span v-if="loading" class="loading-spinner-sm"></span>
+                        {{ loading ? 'Querying...' : 'Query' }}
+                    </button>
+                    <el-upload :show-file-list="false" accept=".json" :before-upload="handleFileUpload">
+                        <button class="secondary-btn" :disabled="loading">Load JSON</button>
+                    </el-upload>
+                    <button class="link-btn" @click="loadDemo" :disabled="loading">Load Demo</button>
+                </div>
+            </div>
+
+            <!-- Filter Bar -->
+            <div class="filter-bar" v-if="results.length > 0">
+                <el-input v-model="searchQuery" placeholder="Search tracking number" clearable
+                    style="width: 240px;" size="default" @clear="currentPage = 1" @keyup.enter="currentPage = 1" />
+
+                <el-select v-model="statusFilter" multiple collapse-tags collapse-tags-tooltip
+                    placeholder="Filter by status" clearable style="width: 240px;" @change="currentPage = 1">
+                    <el-option v-for="s in allStatusOptions" :key="s.value" :label="s.label" :value="s.value" />
+                </el-select>
+
+                <el-select v-model="hasEventsFilter" placeholder="Has events" clearable style="width: 140px;" @change="currentPage = 1">
+                    <el-option label="All" value="" />
+                    <el-option label="Has events" value="yes" />
+                    <el-option label="No events" value="no" />
+                </el-select>
+
+                <el-select v-model="sortBy" style="width: 180px;" @change="currentPage = 1">
+                    <el-option label="Original order" value="original" />
+                    <el-option label="Status A-Z" value="status_asc" />
+                    <el-option label="Status Z-A" value="status_desc" />
+                    <el-option label="Events (most)" value="events_desc" />
+                    <el-option label="Events (least)" value="events_asc" />
+                </el-select>
+
+                <span class="result-count">
+                    Found <strong>{{ filteredResults.length }}</strong> records
+                </span>
+            </div>
+
+            <!-- Content -->
+            <div class="content-area" v-if="results.length > 0">
+                <table class="track-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 46px;">#</th>
+                            <th style="width: 210px;">Tracking Number</th>
+                            <th style="width: 160px;">Status</th>
+                            <th style="width: 130px;">Est. Delivery</th>
+                            <th>Events</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(item, idx) in pagedResults" :key="item.tracking_number">
+                            <td style="color: #bbb;">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
+                            <td>
+                                <div class="tracking-number" @click="showDetail(item)">{{ item.tracking_number }}</div>
+                                <div v-if="item.error" style="color: #f56c6c; font-size: 12px; margin-top: 3px;">{{ item.error }}</div>
+                            </td>
+                            <td>
+                                <span class="status-tag" :class="statusClass(item)">{{ statusText(item) }}</span>
+                            </td>
+                            <td>
+                                <span v-if="item.data && item.data.estimated_delivery" style="color: #2e7d32; font-weight: 500;">
+                                    {{ item.data.estimated_delivery }}
+                                </span>
+                                <span v-else style="color: #ddd;">-</span>
+                            </td>
+                            <td>
+                                <template v-if="item.data && item.data.events && item.data.events.length > 0">
+                                    <ul class="event-list">
+                                        <li v-for="(ev, eidx) in item.data.events.slice(0, expandedRows[item.tracking_number] ? 999 : 3)" :key="eidx">
+                                            <span class="event-date">{{ ev.date }}</span>
+                                            <span class="event-loc" v-if="ev.location">{{ ev.location }}</span>
+                                            <span class="event-desc">{{ ev.description }}</span>
+                                        </li>
+                                    </ul>
+                                    <div v-if="item.data.events.length > 3" class="more-events"
+                                         @click="toggleExpand(item.tracking_number)">
+                                        {{ expandedRows[item.tracking_number] ? 'Collapse' : `+${item.data.events.length - 3} more` }}
+                                    </div>
+                                </template>
+                                <span v-else style="color: #ddd;">-</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="content-area" v-else>
+                <div class="empty-state">
+                    <el-empty description="Paste tracking numbers above and click Query to start" />
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination-bar" v-if="filteredResults.length > 0">
+                <el-pagination
+                    v-model:current-page="currentPage"
+                    v-model:page-size="pageSize"
+                    :page-sizes="[20, 50, 100, 200]"
+                    :total="filteredResults.length"
+                    layout="sizes, prev, pager, next, jumper"
+                    background
+                    small
+                />
+            </div>
+
+            <!-- Bottom bar -->
+            <div class="bottom-bar" v-if="results.length > 0">
+                <el-button size="small" @click="exportFiltered">Export Filtered JSON</el-button>
+                <span style="margin-left: auto;">
+                    Total: {{ results.length }} | Filtered: {{ filteredResults.length }} |
+                    Page {{ currentPage }}/{{ Math.ceil(filteredResults.length / pageSize) || 1 }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail dialog -->
+    <el-dialog v-model="showDetailDialog" :title="'Tracking: ' + (detailItem?.tracking_number || '')" width="700px" top="6vh">
+        <template v-if="detailItem">
+            <el-descriptions :column="2" border size="small" style="margin-bottom: 16px;">
+                <el-descriptions-item label="Tracking Number">
+                    <span style="font-family: Consolas, monospace;">{{ detailItem.tracking_number }}</span>
+                </el-descriptions-item>
+                <el-descriptions-item label="Status">
+                    <span class="status-tag" :class="statusClass(detailItem)">{{ statusText(detailItem) }}</span>
+                </el-descriptions-item>
+                <el-descriptions-item label="Est. Delivery">
+                    {{ (detailItem.data && detailItem.data.estimated_delivery) || '-' }}
+                </el-descriptions-item>
+                <el-descriptions-item label="Events">
+                    {{ detailItem.data ? (detailItem.data.events || []).length : 0 }}
+                </el-descriptions-item>
+            </el-descriptions>
+            <el-alert v-if="detailItem.error" :title="detailItem.error" type="error" show-icon :closable="false" style="margin-bottom: 12px;" />
+            <el-timeline v-if="detailItem.data && detailItem.data.events && detailItem.data.events.length">
+                <el-timeline-item v-for="(ev, i) in detailItem.data.events" :key="i"
+                    :type="i === 0 ? 'primary' : ''" :hollow="i !== 0" :timestamp="ev.date" placement="top">
+                    <strong v-if="ev.location">{{ ev.location }}</strong>
+                    <p style="margin: 2px 0 0; color: #555;">{{ ev.description }}</p>
+                </el-timeline-item>
+            </el-timeline>
+            <el-empty v-else description="No event data" :image-size="60" />
+        </template>
+    </el-dialog>
+</div>
+
+<script>
+const { createApp, ref, computed, reactive, watch } = Vue;
+
+const STATUS_DEFS = [
+    { key: 'all',              label: 'All',              color: '#909399' },
+    { key: 'delivered',        label: 'Delivered',        color: '#67c23a' },
+    { key: 'transit',          label: 'In Transit',       color: '#409eff' },
+    { key: 'out_for_delivery', label: 'Out for Delivery', color: '#e6a23c' },
+    { key: 'pre_shipment',     label: 'Pre-Shipment',     color: '#a855f7' },
+    { key: 'alert',            label: 'Alert / Exception',color: '#f56c6c' },
+    { key: 'error',            label: 'Error',            color: '#ef4444' },
+    { key: 'unknown',          label: 'Unknown',          color: '#c0c4cc' },
+];
+
+const STATUS_CLASS_MAP = {
+    delivered: 'status-delivered',
+    transit: 'status-transit',
+    out_for_delivery: 'status-out-for-delivery',
+    pre_shipment: 'status-pre-shipment',
+    alert: 'status-alert',
+    error: 'status-error',
+    unknown: 'status-unknown',
+};
+
+function classifyStatus(item) {
+    if (item.error) return 'error';
+    if (!item.data || !item.data.status) return 'unknown';
+    const s = item.data.status.toLowerCase();
+    if (s.includes('deliver') && !s.includes('out for')) return 'delivered';
+    if (s.includes('out for delivery')) return 'out_for_delivery';
+    if (s.includes('transit') || s.includes('accepted') || s.includes('processed') || s.includes('arrived') || s.includes('departed') || s.includes('origin') || s.includes('in transit')) return 'transit';
+    if (s.includes('alert') || s.includes('exception') || s.includes('return') || s.includes('undeliverable')) return 'alert';
+    if (s.includes('pre-shipment') || s.includes('shipping label') || s.includes('label created') || s.includes('awaiting')) return 'pre_shipment';
+    return 'unknown';
+}
+
+const app = createApp({
+    setup() {
+        const inputText = ref('');
+        const results = ref([]);
+        const loading = ref(false);
+        const queryNumbers = ref([]);
+
+        const searchQuery = ref('');
+        const currentFilter = ref('all');
+        const statusFilter = ref([]);
+        const hasEventsFilter = ref('');
+        const sortBy = ref('original');
+        const currentPage = ref(1);
+        const pageSize = ref(20);
+
+        const showDetailDialog = ref(false);
+        const detailItem = ref(null);
+        const expandedRows = reactive({});
+
+        function statusText(item) {
+            if (item.error) return 'Error';
+            return (item.data && item.data.status) || 'Unknown';
+        }
+        function statusClass(item) {
+            return STATUS_CLASS_MAP[classifyStatus(item)] || 'status-unknown';
+        }
+
+        const sidebarItems = computed(() => {
+            const counts = {};
+            STATUS_DEFS.forEach(d => counts[d.key] = 0);
+            counts.all = results.value.length;
+            results.value.forEach(item => {
+                const c = classifyStatus(item);
+                if (counts[c] !== undefined) counts[c]++;
+            });
+            return STATUS_DEFS.map(d => ({ ...d, count: counts[d.key] }))
+                .filter(d => d.key === 'all' || d.count > 0);
+        });
+
+        const allStatusOptions = computed(() => {
+            return STATUS_DEFS.filter(d => d.key !== 'all').map(d => ({ label: d.label, value: d.key }));
+        });
+
+        const filteredResults = computed(() => {
+            let list = results.value;
+
+            if (currentFilter.value !== 'all') {
+                list = list.filter(item => classifyStatus(item) === currentFilter.value);
+            }
+
+            if (statusFilter.value.length > 0) {
+                list = list.filter(item => statusFilter.value.includes(classifyStatus(item)));
+            }
+
+            if (searchQuery.value.trim()) {
+                const q = searchQuery.value.trim().toLowerCase();
+                list = list.filter(item => item.tracking_number.toLowerCase().includes(q));
+            }
+
+            if (hasEventsFilter.value === 'yes') {
+                list = list.filter(item => item.data && item.data.events && item.data.events.length > 0);
+            } else if (hasEventsFilter.value === 'no') {
+                list = list.filter(item => !item.data || !item.data.events || item.data.events.length === 0);
+            }
+
+            if (sortBy.value !== 'original') {
+                list = [...list];
+                if (sortBy.value === 'status_asc') list.sort((a, b) => statusText(a).localeCompare(statusText(b)));
+                else if (sortBy.value === 'status_desc') list.sort((a, b) => statusText(b).localeCompare(statusText(a)));
+                else if (sortBy.value === 'events_desc') list.sort((a, b) => ((b.data?.events?.length || 0) - (a.data?.events?.length || 0)));
+                else if (sortBy.value === 'events_asc') list.sort((a, b) => ((a.data?.events?.length || 0) - (b.data?.events?.length || 0)));
+            }
+
+            return list;
+        });
+
+        const pagedResults = computed(() => {
+            const start = (currentPage.value - 1) * pageSize.value;
+            return filteredResults.value.slice(start, start + pageSize.value);
+        });
+
+        function parseInput() {
+            return inputText.value
+                .split(/[\n\r,;]+/)
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+        }
+
+        async function doQuery() {
+            const numbers = parseInput();
+            if (numbers.length === 0) {
+                ElementPlus.ElMessage.warning('Please enter at least one tracking number');
+                return;
+            }
+            const seen = new Set();
+            const unique = numbers.filter(n => { if (seen.has(n)) return false; seen.add(n); return true; });
+
+            queryNumbers.value = unique;
+            loading.value = true;
+            resetFilters();
+
+            try {
+                const resp = await fetch('/api/track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tracking_numbers: unique }),
+                });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    throw new Error(err.error || `HTTP ${resp.status}`);
+                }
+                const data = await resp.json();
+                loadData(data);
+                ElementPlus.ElMessage.success(`Queried ${data.length} tracking number(s)`);
+            } catch (e) {
+                ElementPlus.ElMessage.error('Query failed: ' + e.message);
+            } finally {
+                loading.value = false;
+            }
+        }
+
+        function loadData(data) {
+            if (!Array.isArray(data)) {
+                ElementPlus.ElMessage.error('Invalid data format');
+                return;
+            }
+            results.value = data;
+            resetFilters();
+        }
+
+        function resetFilters() {
+            currentFilter.value = 'all';
+            statusFilter.value = [];
+            searchQuery.value = '';
+            hasEventsFilter.value = '';
+            sortBy.value = 'original';
+            currentPage.value = 1;
+            Object.keys(expandedRows).forEach(k => delete expandedRows[k]);
+        }
+
+        function handleFileUpload(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    loadData(data);
+                    ElementPlus.ElMessage.success(`Loaded ${data.length} records from file`);
+                } catch (err) {
+                    ElementPlus.ElMessage.error('Failed to parse JSON file');
+                }
+            };
+            reader.readAsText(file);
+            return false;
+        }
+
+        function showDetail(item) {
+            detailItem.value = item;
+            showDetailDialog.value = true;
+        }
+
+        function toggleExpand(tn) {
+            expandedRows[tn] = !expandedRows[tn];
+        }
+
+        function exportFiltered() {
+            const blob = new Blob([JSON.stringify(filteredResults.value, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tracking_${currentFilter.value}_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadDemo() {
+            const demo = [
+                { tracking_number: '9202030335967130381609', error: null, data: { status: 'In Transit to Next Facility', estimated_delivery: 'May 15, 2026', events: [
+                    { date: 'May 12, 2026, 8:34 pm', location: 'MIAMI, FL 33152', description: 'In Transit to Next Facility' },
+                    { date: 'May 11, 2026, 5:12 am', location: 'YBOR CITY, FL 33605', description: 'Arrived at USPS Regional Facility' },
+                    { date: 'May 10, 2026, 11:30 pm', location: 'TAMPA, FL 33630', description: 'Departed USPS Regional Facility' },
+                    { date: 'May 10, 2026, 3:22 pm', location: 'TAMPA, FL 33630', description: 'Arrived at USPS Regional Origin Facility' },
+                    { date: 'May 9, 2026, 6:45 pm', location: 'ORLANDO, FL 32862', description: 'USPS in possession of item' },
+                ]}},
+                { tracking_number: '9202062196581167773349', error: null, data: { status: 'Out for Delivery', estimated_delivery: 'May 12, 2026', events: [
+                    { date: 'May 12, 2026, 7:15 am', location: 'LOS ANGELES, CA 90001', description: 'Out for Delivery' },
+                    { date: 'May 12, 2026, 5:03 am', location: 'LOS ANGELES, CA 90052', description: 'Arrived at Post Office' },
+                    { date: 'May 11, 2026, 9:48 pm', location: 'LOS ANGELES, CA 90052', description: 'Arrived at USPS Facility' },
+                    { date: 'May 10, 2026, 2:30 pm', location: 'INDUSTRY, CA 91744', description: 'Departed USPS Regional Facility' },
+                ]}},
+                { tracking_number: '9202083977671723087231', error: null, data: { status: 'Delivered, Front Door/Porch', estimated_delivery: '', events: [
+                    { date: 'May 11, 2026, 1:22 pm', location: 'NEW YORK, NY 10001', description: 'Delivered, Front Door/Porch' },
+                    { date: 'May 11, 2026, 7:05 am', location: 'NEW YORK, NY 10199', description: 'Out for Delivery' },
+                    { date: 'May 10, 2026, 11:17 pm', location: 'NEW YORK, NY 10199', description: 'Arrived at Post Office' },
+                    { date: 'May 9, 2026, 3:44 pm', location: 'JERSEY CITY, NJ 07097', description: 'Departed USPS Regional Facility' },
+                ]}},
+                { tracking_number: '9202035799523029105887', error: null, data: { status: 'In Transit to Next Facility', estimated_delivery: 'May 16, 2026', events: [
+                    { date: 'May 12, 2026, 2:10 am', location: 'CHICAGO, IL 60629', description: 'In Transit to Next Facility' },
+                    { date: 'May 11, 2026, 8:33 am', location: 'BEDFORD PARK, IL 60499', description: 'Arrived at USPS Regional Facility' },
+                ]}},
+                { tracking_number: '9400111899223387654321', error: null, data: { status: 'Delivered, In/At Mailbox', estimated_delivery: '', events: [
+                    { date: 'May 10, 2026, 11:45 am', location: 'SEATTLE, WA 98101', description: 'Delivered, In/At Mailbox' },
+                    { date: 'May 10, 2026, 6:30 am', location: 'SEATTLE, WA 98134', description: 'Out for Delivery' },
+                ]}},
+                { tracking_number: '9261290100130267438012', error: null, data: { status: 'Alert: Package Returned', estimated_delivery: '', events: [
+                    { date: 'May 11, 2026, 4:30 pm', location: 'HOUSTON, TX 77001', description: 'Return to Sender Processed' },
+                    { date: 'May 9, 2026, 10:15 am', location: 'HOUSTON, TX 77001', description: 'Addressee Unknown' },
+                ]}},
+                { tracking_number: '9505511234567890123456', error: null, data: { status: 'Shipping Label Created, USPS Awaiting Item', estimated_delivery: '', events: [
+                    { date: 'May 8, 2026, 9:00 am', location: '', description: 'Shipping Label Created, USPS Awaiting Item' },
+                ]}},
+                { tracking_number: '9400111899223000000001', error: 'Failed after 1 retry(ies)', data: null },
+            ];
+            loadData(demo);
+            ElementPlus.ElMessage.success('Demo data loaded');
+        }
+
+        return {
+            inputText, results, loading, queryNumbers,
+            searchQuery, currentFilter, statusFilter, hasEventsFilter, sortBy,
+            currentPage, pageSize,
+            showDetailDialog, detailItem, expandedRows,
+            sidebarItems, allStatusOptions, filteredResults, pagedResults,
+            statusText, statusClass,
+            doQuery, handleFileUpload, showDetail, toggleExpand, exportFiltered, loadDemo,
+        };
+    }
+});
+
+app.use(ElementPlus);
+app.mount('#app');
+</script>
+</body>
+</html>
