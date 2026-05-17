@@ -1,602 +1,937 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>USPS Tracking Dashboard</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/element-plus/2.9.1/index.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.5.13/vue.global.prod.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/element-plus/2.9.1/index.full.min.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { height: 100%; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f0f2f5; }
-        #app { height: 100%; }
-        .app-container { display: flex; height: 100vh; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>单号查询</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>
+:root{--bg-page:#f0f2f5;--bg-card:#fff;--color-primary:#5c67f2;--color-primary-hover:#4e58d9;--color-danger:#dc3545;--color-warning:#f39c12;--color-success:#28a745;--color-text:#2c3e50;--color-text-secondary:#7f8c8d;--color-border:#b0b8c2;--sidebar-gradient:linear-gradient(180deg,#3a3f5c,#4e58d9,#5c67f2);--card-radius:8px;--card-shadow:0 2px 8px rgba(0,0,0,.08);--input-radius:6px;--input-focus-shadow:0 0 0 3px rgba(92,103,242,.12);--btn-radius:6px;--font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;--font-mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font-family);background:var(--bg-page);color:var(--color-text);line-height:1.6;font-size:14px}
+/* Layout */
+.app-layout{display:flex;min-height:100vh}
+.sidebar{width:200px;background:var(--sidebar-gradient);color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow-y:auto;transition:width .2s}
+.sidebar.collapsed{width:0;overflow:hidden}
+.sidebar-header{padding:16px 14px 10px;font-size:18px;font-weight:700;letter-spacing:1px;border-bottom:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:6px}
+.sidebar-header img{height:24px}
+.menu-section{padding:4px 0}
+.menu-item{display:flex;align-items:center;justify-content:space-between;padding:8px 18px;cursor:pointer;font-size:14px;border-radius:0;transition:background .15s;user-select:none}
+.menu-item:hover{background:rgba(255,255,255,.1)}
+.menu-item.active{background:rgba(255,255,255,.18);border-left:3px solid #fff;padding-left:15px;font-weight:600}
+.menu-item.disabled{opacity:.45;cursor:default}
+.menu-item .count{font-size:11px;opacity:.7}
+.menu-group-title{padding:8px 18px;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:background .15s}
+.menu-group-title:hover{background:rgba(255,255,255,.08)}
+.menu-group-title .arrow{font-size:10px;transition:transform .2s}
+.menu-group-title .arrow.open{transform:rotate(90deg)}
+.submenu{overflow:hidden;transition:max-height .25s ease}
+.submenu .menu-item{padding-left:32px;font-size:12px}
+.submenu .menu-item.active{padding-left:29px}
 
-        /* Sidebar */
-        .sidebar {
-            width: 200px; min-width: 200px; background: #1d2b36; color: #fff;
-            overflow-y: auto; display: flex; flex-direction: column; flex-shrink: 0;
-        }
-        .sidebar-logo {
-            padding: 18px 16px 14px; font-size: 15px; font-weight: 700; color: #fff;
-            border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 8px;
-            letter-spacing: 0.5px;
-        }
-        .sidebar-logo .dot { width: 8px; height: 8px; border-radius: 50%; background: #67c23a; display: inline-block; }
-        .sidebar-section-title {
-            padding: 16px 16px 6px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.35);
-            text-transform: uppercase; letter-spacing: 1px;
-        }
-        .sidebar-menu { list-style: none; padding: 4px 0; flex: 1; }
-        .sidebar-menu li {
-            padding: 9px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
-            font-size: 13px; color: rgba(255,255,255,0.65); transition: all 0.15s; border-left: 3px solid transparent;
-        }
-        .sidebar-menu li:hover { background: rgba(255,255,255,0.05); color: #fff; }
-        .sidebar-menu li.active { background: rgba(64,158,255,0.15); color: #409eff; border-left-color: #409eff; }
-        .sidebar-menu li .count {
-            background: rgba(255,255,255,0.1); padding: 1px 7px; border-radius: 10px; font-size: 11px;
-            min-width: 24px; text-align: center; color: rgba(255,255,255,0.5);
-        }
-        .sidebar-menu li.active .count { background: rgba(64,158,255,0.25); color: #409eff; }
-        .sidebar-menu li .status-dot {
-            width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; flex-shrink: 0;
-        }
-        .sidebar-menu li .label-wrap { display: flex; align-items: center; }
+/* Main */
+.main-content{margin-left:200px;flex:1;padding:12px 16px 60px;transition:margin-left .2s}
+.sidebar.collapsed+.main-content{margin-left:0}
+.breadcrumb{font-size:13px;color:var(--color-text-secondary);margin-bottom:8px}
+.breadcrumb span{color:var(--color-text)}
 
-        /* Main */
-        .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+/* Card */
+.card{background:var(--bg-card);border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:14px 16px;margin-bottom:12px}
+.card-accent{border-left:4px solid var(--color-primary)}
 
-        /* Input section */
-        .input-section {
-            background: #fff; padding: 16px 24px; border-bottom: 1px solid #e8e8e8;
-        }
-        .input-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-        .input-header h3 { font-size: 15px; font-weight: 600; color: #333; margin: 0; }
-        .input-body { margin-bottom: 12px; }
-        .input-actions { display: flex; flex-direction: row; gap: 12px; align-items: center; }
-        .query-btn {
-            padding: 10px 32px; background: #409eff; color: #fff; border: none; border-radius: 6px;
-            font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;
-        }
-        .query-btn:hover { background: #337ecc; }
-        .query-btn:disabled { background: #a0cfff; cursor: not-allowed; }
-        .secondary-btn {
-            padding: 8px 16px; background: #fff; color: #606266; border: 1px solid #dcdfe6; border-radius: 6px;
-            font-size: 13px; cursor: pointer;
-        }
-        .secondary-btn:hover { color: #409eff; border-color: #c6e2ff; }
-        .secondary-btn:disabled { color: #c0c4cc; cursor: not-allowed; }
-        .link-btn {
-            padding: 8px 12px; background: none; border: none; color: #409eff; font-size: 13px; cursor: pointer;
-        }
-        .link-btn:hover { color: #337ecc; }
-        .link-btn:disabled { color: #c0c4cc; cursor: not-allowed; }
-        .loading-spinner-sm {
-            display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4);
-            border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite;
-        }
+/* Filters */
+.filter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px 12px;align-items:end}
+.filter-group{display:flex;flex-direction:column;gap:2px}
+.filter-group label{font-size:13px;color:var(--color-text-secondary);font-weight:500}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.merge-input{display:flex}
+.merge-input select{border-radius:var(--input-radius) 0 0 var(--input-radius);border:1px solid var(--color-border);border-right:none;padding:6px 8px;font-size:12px;background:#fff;outline:none}
+.merge-input input,.merge-input .date-trigger,.merge-input textarea{border-radius:0 var(--input-radius) var(--input-radius) 0;border:1px solid var(--color-border);padding:6px 10px;font-size:12px;outline:none;flex:1;min-width:120px}
+.tn-textarea{resize:none;height:72px;overflow-y:auto;font-family:var(--font-mono);line-height:1.5;width:40%;border:1px solid var(--color-border);border-radius:var(--input-radius);padding:6px 10px;font-size:12px;outline:none}
+.tn-textarea:focus{border-color:var(--color-primary);box-shadow:var(--input-focus-shadow)}
+.merge-input select:focus,.merge-input input:focus{border-color:var(--color-primary);box-shadow:var(--input-focus-shadow)}
+input,select,textarea{font-family:var(--font-family);font-size:13px}
+input[type="text"],input[type="date"],select:not(.page-select),textarea{border:1px solid var(--color-border);border-radius:var(--input-radius);padding:6px 10px;outline:none;width:100%;background:#fff}
+input:focus,select:focus,textarea:focus{border-color:var(--color-primary);box-shadow:var(--input-focus-shadow)}
 
-        /* Filter bar */
-        .filter-bar {
-            background: #fff; padding: 12px 24px; border-bottom: 1px solid #e8e8e8;
-            display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-        }
-        .filter-bar .result-count { margin-left: auto; font-size: 13px; color: #999; white-space: nowrap; }
-        .filter-bar .result-count strong { color: #409eff; font-size: 14px; }
+/* Multi-select */
+.multi-select{position:relative}
+.ms-trigger{border:1px solid var(--color-border);border-radius:var(--input-radius);padding:5px 28px 5px 8px;font-size:12px;cursor:pointer;min-height:32px;display:flex;flex-wrap:wrap;gap:3px;align-items:center;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237f8c8d'/%3E%3C/svg%3E") no-repeat right 8px center}
+.ms-trigger:hover{border-color:var(--color-primary)}
+.ms-trigger.open{border-color:var(--color-primary);box-shadow:var(--input-focus-shadow)}
+.ms-tag{background:rgba(92,103,242,.1);color:var(--color-primary);padding:1px 6px;border-radius:3px;font-size:11px;display:flex;align-items:center;gap:3px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-tag .ms-tag-close{cursor:pointer;font-weight:700;font-size:13px;line-height:1}
+.ms-placeholder{color:var(--color-text-secondary);font-size:12px}
+.ms-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--color-border);border-radius:var(--input-radius);box-shadow:0 6px 20px rgba(0,0,0,.12);z-index:200;max-height:260px;overflow:hidden;display:flex;flex-direction:column}
+.ms-search{padding:6px;border-bottom:1px solid #eee}
+.ms-search input{width:100%;border:1px solid #ddd;border-radius:4px;padding:5px 8px;font-size:12px}
+.ms-list{overflow-y:auto;flex:1}
+.ms-option{padding:6px 10px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px}
+.ms-option:hover{background:rgba(92,103,242,.06)}
+.ms-option.selected{color:var(--color-primary);font-weight:500}
+.ms-option input[type="checkbox"]{accent-color:var(--color-primary)}
 
-        /* Content */
-        .content-area { flex: 1; padding: 16px 24px; overflow-y: auto; }
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 16px;border:none;border-radius:var(--btn-radius);cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;font-family:var(--font-family)}
+.btn-primary{background:var(--color-primary);color:#fff}
+.btn-primary:hover{background:var(--color-primary-hover);transform:translateY(-1px);box-shadow:0 3px 10px rgba(92,103,242,.25)}
+.btn-ghost{background:transparent;border:1px solid var(--color-border);color:var(--color-text)}
+.btn-ghost:hover{border-color:var(--color-primary);color:var(--color-primary)}
+.btn-danger{background:var(--color-danger);color:#fff}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.text-count{color:var(--color-primary);font-weight:700;font-size:14px}
 
-        /* Table */
-        .track-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-        .track-table thead th {
-            background: #fafafa; padding: 11px 14px; font-size: 13px; font-weight: 600; color: #333;
-            text-align: left; border-bottom: 2px solid #f0f0f0; white-space: nowrap; position: sticky; top: 0; z-index: 1;
-        }
-        .track-table tbody tr { border-bottom: 1px solid #f0f0f0; transition: background 0.12s; }
-        .track-table tbody tr:hover { background: #f5f7fa; }
-        .track-table tbody td { padding: 12px 14px; font-size: 13px; color: #555; vertical-align: top; }
+/* Table */
+.table-wrap{overflow-x:auto;border:1px solid #e8eaed;border-radius:var(--card-radius);background:#fff;position:relative}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:1100px;table-layout:fixed}
+thead{position:sticky;top:0;z-index:10}
+th{background:#f7f8fa;padding:8px 6px;text-align:left;font-weight:600;font-size:12px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e8eaed;white-space:nowrap}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:var(--color-primary);background:#f0f1fa}
+.sort-icon{display:inline-flex;flex-direction:column;vertical-align:middle;margin-left:3px;line-height:1;font-size:8px;color:#ccc}
+.sort-icon .up,.sort-icon .down{line-height:1}
+th.sort-asc .sort-icon .up,th.sort-desc .sort-icon .down{color:var(--color-primary)}
+td{padding:8px 6px;border-bottom:1px solid #f0f0f0;vertical-align:top}
+tr:hover td{background:rgba(92,103,242,.03)}
+.cb-col{width:36px;text-align:center}
+input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
+.time-cell p{margin:0;font-size:12px;color:var(--color-text-secondary);display:flex;gap:4px;line-height:1.6;align-items:baseline}
+.time-cell .lbl{color:#999;font-size:12px;min-width:28px;flex-shrink:0}
+.tn-cell{font-family:var(--font-mono);font-size:13px;color:var(--color-primary);cursor:pointer;word-break:break-all}
+.tn-cell:hover{text-decoration:underline}
+.tn-links{margin-top:3px;font-size:11px}
+.tn-links a{color:var(--color-primary);text-decoration:none;margin-right:8px}
+.tn-links a:hover{text-decoration:underline}
+.status-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:500;color:#fff}
+.dest-cell{font-size:12px}
+.track-cell{font-size:12px;overflow:hidden;word-break:break-word}
+.track-header{display:flex;align-items:flex-start;gap:5px;cursor:pointer}
+.track-header:hover .track-chevron{color:var(--color-primary)}
+.track-chevron{flex-shrink:0;margin-top:2px;color:var(--color-text-secondary);transition:transform .2s}
+.track-chevron.open{transform:rotate(180deg);color:var(--color-primary)}
+.track-brief{flex:1;line-height:1.5}
+.track-brief-time{font-size:12px;color:var(--color-text-secondary)}
+.track-brief-desc{font-size:12px;color:var(--color-text)}
+.track-brief-loc{font-size:10px;color:#999}
+.track-no-data{color:#bbb;font-size:11px}
+.track-detail{margin-top:4px;margin-left:17px;border-top:1px dashed #e0e3e8;padding-top:4px}
+.track-event{padding:6px 0;border-top:1px dashed #e0e3e8;line-height:1.5}
+.track-event:first-child{border-top:none}
+.track-event-time{font-size:11px;color:var(--color-text-secondary)}
+.track-event-desc{font-size:12px;color:var(--color-text)}
+.track-event-loc{font-size:10px;color:#999}
+.track-link{margin-top:4px;margin-left:17px}
+.track-link a{color:var(--color-primary);text-decoration:none;font-size:11px}
+.track-link a:hover{text-decoration:underline}
+.aging-cell p{font-size:12px;margin:0;line-height:1.6;color:var(--color-text-secondary)}
+.query-time-cell{font-size:12px;color:var(--color-text-secondary)}
+.query-warn{color:var(--color-warning);font-weight:500}
+.query-warn-text{font-size:10px;color:#fff;background:var(--color-warning);display:inline-block;padding:0 5px;border-radius:3px;margin-top:2px}
+.remark-cell{font-size:12px}
+.remark-cell .remark-link{color:var(--color-primary);cursor:pointer;font-size:11px;text-decoration:none}
+.remark-cell .remark-link:hover{text-decoration:underline}
 
-        .tracking-number { color: #409eff; cursor: pointer; font-family: 'Consolas','Courier New', monospace; font-size: 13px; word-break: break-all; }
-        .tracking-number:hover { text-decoration: underline; }
+/* Bottom bar */
+.bottom-bar{position:fixed;bottom:0;left:200px;right:0;background:#fff;border-top:1px solid #e8eaed;padding:6px 16px;display:flex;justify-content:space-between;align-items:center;z-index:90;font-size:12px;transition:left .2s}
+.sidebar.collapsed~.main-content~.bottom-bar,.sidebar.collapsed~.bottom-bar{left:0}
+.bottom-actions{display:flex;gap:6px;align-items:center}
+.pagination{display:flex;align-items:center;gap:6px}
+.page-select{border:1px solid var(--color-border);border-radius:4px;padding:3px 6px;font-size:12px}
+.page-btn{width:28px;height:28px;border:1px solid var(--color-border);border-radius:4px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px}
+.page-btn:hover{border-color:var(--color-primary);color:var(--color-primary)}
+.page-btn.active{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}
+.page-btn:disabled{opacity:.4;cursor:not-allowed}
+.page-jump{display:flex;align-items:center;gap:4px;font-size:12px}
+.page-jump input{width:40px;text-align:center;padding:3px;border:1px solid var(--color-border);border-radius:4px}
 
-        .status-tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; white-space: nowrap; }
-        .status-delivered { background: #e8f5e9; color: #2e7d32; }
-        .status-transit { background: #e3f2fd; color: #1565c0; }
-        .status-out-for-delivery { background: #fff3e0; color: #e65100; }
-        .status-pre-shipment { background: #f3e5f5; color: #7b1fa2; }
-        .status-alert { background: #fce4ec; color: #c62828; }
-        .status-error { background: #ffebee; color: #b71c1c; }
-        .status-unknown { background: #f5f5f5; color: #757575; }
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:flex;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:var(--card-radius);width:680px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.15)}
+.modal-header{padding:14px 20px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:15px}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#999;padding:0 4px}
+.modal-close:hover{color:var(--color-danger)}
+.modal-body{padding:16px 20px;overflow-y:auto;flex:1}
+.modal-footer{padding:12px 20px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:8px}
 
-        .event-list { list-style: none; padding: 0; margin: 0; }
-        .event-list li { padding: 2px 0; font-size: 12px; color: #666; line-height: 1.5; display: flex; gap: 6px; }
-        .event-list li:first-child { color: #333; font-weight: 500; }
-        .event-date { color: #999; white-space: nowrap; font-size: 11px; min-width: 90px; }
-        .event-loc { color: #409eff; font-size: 11px; white-space: nowrap; }
-        .event-desc { flex: 1; }
-        .more-events { color: #409eff; cursor: pointer; font-size: 12px; margin-top: 2px; }
-        .more-events:hover { text-decoration: underline; }
+/* Import */
+.import-carrier{margin-bottom:12px}
+.import-carrier label{font-weight:500;font-size:12px}
+.import-carrier .val{background:#f0f2f5;padding:6px 12px;border-radius:var(--input-radius);margin-top:4px;font-size:13px;display:inline-block}
+.import-textarea{width:100%;height:200px;resize:vertical;font-family:var(--font-mono);font-size:12px;padding:10px;border:1px solid var(--color-border);border-radius:var(--input-radius)}
+.import-textarea:focus{border-color:var(--color-primary);box-shadow:var(--input-focus-shadow);outline:none}
+.import-counter{text-align:right;font-size:11px;color:var(--color-text-secondary);margin-top:4px}
 
-        .pagination-bar { background: #fff; padding: 12px 24px; border-top: 1px solid #e8e8e8; display: flex; justify-content: center; }
-        .bottom-bar { background: #fff; padding: 8px 24px; border-top: 1px solid #e8e8e8; display: flex; align-items: center; gap: 12px; font-size: 12px; color: #999; }
+/* Export columns */
+.export-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 16px;margin-top:8px}
+.export-col-item{display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0}
+.export-select-all{margin-bottom:8px;font-weight:500;font-size:13px;display:flex;align-items:center;gap:6px}
 
-        .empty-state { text-align: center; padding: 60px 20px; color: #bbb; }
-        .empty-state p { margin-top: 8px; }
+/* Toast */
+.toast{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast-item{padding:10px 20px;border-radius:var(--btn-radius);color:#fff;font-size:13px;animation:slideIn .25s;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.toast-success{background:var(--color-success)}
+.toast-error{background:var(--color-danger)}
+.toast-info{background:var(--color-primary)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 
-        .loading-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.7);
-            z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-        .loading-overlay .loading-text { margin-top: 16px; font-size: 15px; color: #409eff; }
-        .loading-overlay .loading-sub { margin-top: 6px; font-size: 13px; color: #999; }
-        .loading-spinner {
-            width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #409eff;
-            border-radius: 50%; animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
+/* Misc */
+.toggle-sidebar{position:fixed;top:50%;left:200px;z-index:101;background:#fff;color:var(--color-text-secondary);border:1px solid #e0e3e8;border-left:none;border-radius:0 6px 6px 0;padding:0;width:16px;height:48px;cursor:pointer;font-size:0;transition:left .2s;display:flex;align-items:center;justify-content:center;box-shadow:2px 0 6px rgba(0,0,0,.06);transform:translateY(-50%)}
+.toggle-sidebar:hover{background:#f5f6fa;color:var(--color-primary)}
+.toggle-sidebar svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none}
+.sidebar.collapsed~.toggle-sidebar{left:0}
+.empty-state{text-align:center;padding:40px 20px;color:var(--color-text-secondary)}
+.loading-spin{display:inline-block;animation:spin .8s linear infinite}
+.dot-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(92,103,242,.25);border-top-color:var(--color-primary);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
+.dot-spinner-sm{width:10px;height:10px;border-width:1.5px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Date range */
+.date-range-wrap{position:relative}
+.date-trigger{cursor:pointer;background:#fff}
+.date-panel{position:absolute;top:100%;left:0;z-index:300;background:#fff;border:1px solid var(--color-border);border-radius:var(--card-radius);box-shadow:0 8px 30px rgba(0,0,0,.15);display:flex;overflow:hidden}
+.date-shortcuts{width:110px;border-right:1px solid #eee;padding:8px 0;flex-shrink:0}
+.date-shortcuts button{display:block;width:100%;text-align:left;padding:6px 14px;border:none;background:none;cursor:pointer;font-size:12px;color:var(--color-text)}
+.date-shortcuts button:hover{background:rgba(92,103,242,.06);color:var(--color-primary)}
+.date-calendars{display:flex;padding:10px}
+.cal-panel{width:230px;padding:0 8px}
+.cal-header{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px;font-weight:500}
+.cal-header button{background:none;border:none;cursor:pointer;font-size:14px;padding:2px 6px;border-radius:3px;color:var(--color-text-secondary)}
+.cal-header button:hover{background:#f0f2f5}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:12px}
+.cal-grid .cal-day-header{font-size:10px;color:var(--color-text-secondary);padding:4px 0;font-weight:600}
+.cal-grid .cal-day{padding:5px 2px;cursor:pointer;border-radius:4px;font-size:12px}
+.cal-grid .cal-day:hover:not(.disabled):not(.other-month){background:rgba(92,103,242,.1)}
+.cal-grid .cal-day.in-range{background:rgba(92,103,242,.08);border-radius:0}
+.cal-grid .cal-day.start-date,.cal-grid .cal-day.end-date{background:var(--color-primary);color:#fff;border-radius:4px}
+.cal-grid .cal-day.today{font-weight:700;color:var(--color-primary)}
+.cal-grid .cal-day.disabled{color:#ccc;cursor:default}
+.cal-grid .cal-day.other-month{color:#ccc}
+
+/* Responsive */
+@media(max-width:1024px){.sidebar{width:0;overflow:hidden}.main-content{margin-left:0}.bottom-bar{left:0}.toggle-sidebar{left:0}}
+</style>
 </head>
 <body>
 <div id="app">
-    <!-- Loading overlay -->
-    <div class="loading-overlay" v-if="loading">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Querying USPS...</div>
-        <div class="loading-sub">{{ queryNumbers.length }} tracking number(s). This may take a while.</div>
+<!-- Sidebar -->
+<aside class="sidebar" :class="{collapsed:sidebarCollapsed}">
+  <div class="sidebar-header">单号查询</div>
+  <div class="menu-section">
+    <div class="menu-group-title" @click="menuOpen.trackList=!menuOpen.trackList">
+      <span>单号列表</span><span class="arrow" :class="{open:menuOpen.trackList}">▶</span>
     </div>
-
-    <div class="app-container">
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <div class="sidebar-logo">
-                <span class="dot"></span>
-                USPS Tracker
-            </div>
-            <div class="sidebar-section-title">Status Filter</div>
-            <ul class="sidebar-menu">
-                <li v-for="item in sidebarItems" :key="item.key"
-                    :class="{ active: currentFilter === item.key }"
-                    @click="currentFilter = item.key; currentPage = 1">
-                    <span class="label-wrap">
-                        <span class="status-dot" :style="{ background: item.color }"></span>
-                        <span>{{ item.label }}</span>
-                    </span>
-                    <span class="count">{{ item.count }}</span>
-                </li>
-            </ul>
-        </div>
-
-        <!-- Main Area -->
-        <div class="main-area">
-            <!-- Input Section -->
-            <div class="input-section">
-                <div class="input-header">
-                    <h3>Tracking Numbers</h3>
-                    <el-tag size="small" type="info" v-if="results.length > 0">{{ results.length }} loaded</el-tag>
-                </div>
-                <div class="input-body">
-                    <el-input v-model="inputText" type="textarea" :rows="4"
-                        placeholder="Paste tracking numbers here, one per line"
-                        :disabled="loading" />
-                </div>
-                <div class="input-actions">
-                    <button class="query-btn" @click="doQuery" :disabled="loading || !inputText.trim()">
-                        <span v-if="loading" class="loading-spinner-sm"></span>
-                        {{ loading ? 'Querying...' : 'Query' }}
-                    </button>
-                    <el-upload :show-file-list="false" accept=".json" :before-upload="handleFileUpload">
-                        <button class="secondary-btn" :disabled="loading">Load JSON</button>
-                    </el-upload>
-                    <button class="link-btn" @click="loadDemo" :disabled="loading">Load Demo</button>
-                </div>
-            </div>
-
-            <!-- Filter Bar -->
-            <div class="filter-bar" v-if="results.length > 0">
-                <el-input v-model="searchQuery" placeholder="Search tracking number" clearable
-                    style="width: 240px;" size="default" @clear="currentPage = 1" @keyup.enter="currentPage = 1" />
-
-                <el-select v-model="statusFilter" multiple collapse-tags collapse-tags-tooltip
-                    placeholder="Filter by status" clearable style="width: 240px;" @change="currentPage = 1">
-                    <el-option v-for="s in allStatusOptions" :key="s.value" :label="s.label" :value="s.value" />
-                </el-select>
-
-                <el-select v-model="hasEventsFilter" placeholder="Has events" clearable style="width: 140px;" @change="currentPage = 1">
-                    <el-option label="All" value="" />
-                    <el-option label="Has events" value="yes" />
-                    <el-option label="No events" value="no" />
-                </el-select>
-
-                <el-select v-model="sortBy" style="width: 180px;" @change="currentPage = 1">
-                    <el-option label="Original order" value="original" />
-                    <el-option label="Status A-Z" value="status_asc" />
-                    <el-option label="Status Z-A" value="status_desc" />
-                    <el-option label="Events (most)" value="events_desc" />
-                    <el-option label="Events (least)" value="events_asc" />
-                </el-select>
-
-                <span class="result-count">
-                    Found <strong>{{ filteredResults.length }}</strong> records
-                </span>
-            </div>
-
-            <!-- Content -->
-            <div class="content-area" v-if="results.length > 0">
-                <table class="track-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 46px;">#</th>
-                            <th style="width: 210px;">Tracking Number</th>
-                            <th style="width: 160px;">Status</th>
-                            <th style="width: 130px;">Est. Delivery</th>
-                            <th>Events</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="(item, idx) in pagedResults" :key="item.tracking_number">
-                            <td style="color: #bbb;">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
-                            <td>
-                                <div class="tracking-number" @click="showDetail(item)">{{ item.tracking_number }}</div>
-                                <div v-if="item.error" style="color: #f56c6c; font-size: 12px; margin-top: 3px;">{{ item.error }}</div>
-                            </td>
-                            <td>
-                                <span class="status-tag" :class="statusClass(item)">{{ statusText(item) }}</span>
-                            </td>
-                            <td>
-                                <span v-if="item.data && item.data.estimated_delivery" style="color: #2e7d32; font-weight: 500;">
-                                    {{ item.data.estimated_delivery }}
-                                </span>
-                                <span v-else style="color: #ddd;">-</span>
-                            </td>
-                            <td>
-                                <template v-if="item.data && item.data.events && item.data.events.length > 0">
-                                    <ul class="event-list">
-                                        <li v-for="(ev, eidx) in item.data.events.slice(0, expandedRows[item.tracking_number] ? 999 : 3)" :key="eidx">
-                                            <span class="event-date">{{ ev.date }}</span>
-                                            <span class="event-loc" v-if="ev.location">{{ ev.location }}</span>
-                                            <span class="event-desc">{{ ev.description }}</span>
-                                        </li>
-                                    </ul>
-                                    <div v-if="item.data.events.length > 3" class="more-events"
-                                         @click="toggleExpand(item.tracking_number)">
-                                        {{ expandedRows[item.tracking_number] ? 'Collapse' : `+${item.data.events.length - 3} more` }}
-                                    </div>
-                                </template>
-                                <span v-else style="color: #ddd;">-</span>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="content-area" v-else>
-                <div class="empty-state">
-                    <el-empty description="Paste tracking numbers above and click Query to start" />
-                </div>
-            </div>
-
-            <!-- Pagination -->
-            <div class="pagination-bar" v-if="filteredResults.length > 0">
-                <el-pagination
-                    v-model:current-page="currentPage"
-                    v-model:page-size="pageSize"
-                    :page-sizes="[20, 50, 100, 200]"
-                    :total="filteredResults.length"
-                    layout="sizes, prev, pager, next, jumper"
-                    background
-                    small
-                />
-            </div>
-
-            <!-- Bottom bar -->
-            <div class="bottom-bar" v-if="results.length > 0">
-                <el-button size="small" @click="exportFiltered">Export Filtered JSON</el-button>
-                <span style="margin-left: auto;">
-                    Total: {{ results.length }} | Filtered: {{ filteredResults.length }} |
-                    Page {{ currentPage }}/{{ Math.ceil(filteredResults.length / pageSize) || 1 }}
-                </span>
-            </div>
-        </div>
+    <div class="submenu" :style="{maxHeight:menuOpen.trackList?'600px':'0'}">
+      <div v-for="s in mainStatusList" :key="s" class="menu-item"
+           :class="{active:sidebarActive===s}" @click="onSidebarClick(s)">
+        <span>{{s}}</span><span class="count">({{stats[s]||0}})</span>
+      </div>
     </div>
+  </div>
+</aside>
+<button class="toggle-sidebar" @click="sidebarCollapsed=!sidebarCollapsed" :style="{left:sidebarCollapsed?'0':'200px'}">
+  <svg viewBox="0 0 24 24"><polyline :points="sidebarCollapsed?'9 6 15 12 9 18':'15 6 9 12 15 18'"></polyline></svg>
+</button>
 
-    <!-- Detail dialog -->
-    <el-dialog v-model="showDetailDialog" :title="'Tracking: ' + (detailItem?.tracking_number || '')" width="700px" top="6vh">
-        <template v-if="detailItem">
-            <el-descriptions :column="2" border size="small" style="margin-bottom: 16px;">
-                <el-descriptions-item label="Tracking Number">
-                    <span style="font-family: Consolas, monospace;">{{ detailItem.tracking_number }}</span>
-                </el-descriptions-item>
-                <el-descriptions-item label="Status">
-                    <span class="status-tag" :class="statusClass(detailItem)">{{ statusText(detailItem) }}</span>
-                </el-descriptions-item>
-                <el-descriptions-item label="Est. Delivery">
-                    {{ (detailItem.data && detailItem.data.estimated_delivery) || '-' }}
-                </el-descriptions-item>
-                <el-descriptions-item label="Events">
-                    {{ detailItem.data ? (detailItem.data.events || []).length : 0 }}
-                </el-descriptions-item>
-            </el-descriptions>
-            <el-alert v-if="detailItem.error" :title="detailItem.error" type="error" show-icon :closable="false" style="margin-bottom: 12px;" />
-            <el-timeline v-if="detailItem.data && detailItem.data.events && detailItem.data.events.length">
-                <el-timeline-item v-for="(ev, i) in detailItem.data.events" :key="i"
-                    :type="i === 0 ? 'primary' : ''" :hollow="i !== 0" :timestamp="ev.date" placement="top">
-                    <strong v-if="ev.location">{{ ev.location }}</strong>
-                    <p style="margin: 2px 0 0; color: #555;">{{ ev.description }}</p>
-                </el-timeline-item>
-            </el-timeline>
-            <el-empty v-else description="No event data" :image-size="60" />
-        </template>
-    </el-dialog>
+<!-- Main -->
+<main class="main-content">
+  <div class="breadcrumb">单号列表 &gt; <span>{{sidebarActive}}</span></div>
+
+  <!-- Filters -->
+  <div class="card card-accent">
+    <!-- Tracking number - own row -->
+    <div class="filter-group" style="margin-bottom:10px">
+      <label>物流单号</label>
+      <textarea v-model="filters.trackingInput" placeholder="输入单号，多个用换行分隔" class="tn-textarea"></textarea>
+    </div>
+    <!-- Other filters row -->
+    <div class="filter-grid" style="grid-template-columns:2fr 2fr 2fr 2fr 2fr">
+      <!-- Shipped time -->
+      <div class="filter-group">
+        <label>发货时间</label>
+        <div class="date-range-wrap">
+          <input type="text" readonly class="date-trigger" :value="shippedRangeText" @click="openDatePanel('shipped')" placeholder="不限时间" style="width:100%">
+          <div class="date-panel" v-if="activeDatePanel==='shipped'" @click.stop>
+            <div class="date-shortcuts">
+              <button @click="clearDateRange('shipped')">不限时间</button>
+              <button @click="setDateShortcut2('shipped','today')">今天</button>
+              <button @click="setDateShortcut2('shipped','yesterday')">昨天</button>
+              <button @click="setDateShortcut2('shipped','week')">最近一周</button>
+              <button @click="setDateShortcut2('shipped','month1')">最近一个月</button>
+              <button @click="setDateShortcut2('shipped','month2')">最近二个月</button>
+              <button @click="setDateShortcut2('shipped','month3')">最近三个月</button>
+            </div>
+            <div class="date-calendars">
+              <div class="cal-panel">
+                <div class="cal-header">
+                  <button @click="calMonth(-1)">&laquo;</button>
+                  <span>{{calLeftTitle}}</span><span></span>
+                </div>
+                <div class="cal-grid">
+                  <div class="cal-day-header" v-for="d in '日一二三四五六'">{{d}}</div>
+                  <div v-for="d in calLeftDays" :key="'L'+d.key" class="cal-day"
+                       :class="calDayClass(d)" @click="onCalClick(d)">{{d.day}}</div>
+                </div>
+              </div>
+              <div class="cal-panel">
+                <div class="cal-header">
+                  <span></span><span>{{calRightTitle}}</span>
+                  <button @click="calMonth(1)">&raquo;</button>
+                </div>
+                <div class="cal-grid">
+                  <div class="cal-day-header" v-for="d in '日一二三四五六'">{{d}}</div>
+                  <div v-for="d in calRightDays" :key="'R'+d.key" class="cal-day"
+                       :class="calDayClass(d)" @click="onCalClick(d)">{{d.day}}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Delivered time -->
+      <div class="filter-group">
+        <label>收货时间</label>
+        <div class="date-range-wrap">
+          <input type="text" readonly class="date-trigger" :value="deliveredRangeText" @click="openDatePanel('delivered')" placeholder="不限时间" style="width:100%">
+          <div class="date-panel" v-if="activeDatePanel==='delivered'" @click.stop>
+            <div class="date-shortcuts">
+              <button @click="clearDateRange('delivered')">不限时间</button>
+              <button @click="setDateShortcut2('delivered','today')">今天</button>
+              <button @click="setDateShortcut2('delivered','yesterday')">昨天</button>
+              <button @click="setDateShortcut2('delivered','week')">最近一周</button>
+              <button @click="setDateShortcut2('delivered','month1')">最近一个月</button>
+              <button @click="setDateShortcut2('delivered','month2')">最近二个月</button>
+              <button @click="setDateShortcut2('delivered','month3')">最近三个月</button>
+            </div>
+            <div class="date-calendars">
+              <div class="cal-panel">
+                <div class="cal-header">
+                  <button @click="calMonth(-1)">&laquo;</button>
+                  <span>{{calLeftTitle}}</span><span></span>
+                </div>
+                <div class="cal-grid">
+                  <div class="cal-day-header" v-for="d in '日一二三四五六'">{{d}}</div>
+                  <div v-for="d in calLeftDays" :key="'L'+d.key" class="cal-day"
+                       :class="calDayClass(d)" @click="onCalClick(d)">{{d.day}}</div>
+                </div>
+              </div>
+              <div class="cal-panel">
+                <div class="cal-header">
+                  <span></span><span>{{calRightTitle}}</span>
+                  <button @click="calMonth(1)">&raquo;</button>
+                </div>
+                <div class="cal-grid">
+                  <div class="cal-day-header" v-for="d in '日一二三四五六'">{{d}}</div>
+                  <div v-for="d in calRightDays" :key="'R'+d.key" class="cal-day"
+                       :class="calDayClass(d)" @click="onCalClick(d)">{{d.day}}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Status -->
+      <div class="filter-group">
+        <label>包裹状态</label>
+        <multi-select :options="mainStatusList" v-model="filters.mainStatus" placeholder="选择状态"></multi-select>
+      </div>
+      <!-- Destination -->
+      <div class="filter-group">
+        <label>目的国</label>
+        <multi-select :options="countryList" v-model="filters.destination" placeholder="选择目的国" searchable></multi-select>
+      </div>
+      <!-- Remark -->
+      <div class="filter-group">
+        <label>备注</label>
+        <input type="text" v-model="filters.remarkText" placeholder="输入备注关键词" style="height:30px;border:1px solid var(--color-border);border-radius:var(--input-radius);padding:0 10px;font-size:13px;outline:none">
+      </div>
+    </div>
+    <!-- Action row -->
+    <div class="filter-row" style="margin-top:10px">
+      <button class="btn btn-primary" @click="doTrackAll" :disabled="trackingProgress||totalCount===0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        查询
+      </button>
+      <span style="margin-left:8px">找到 <span class="text-count">{{totalCount}}</span> 条</span>
+      <span v-if="trackingProgress" style="margin-left:8px;color:var(--color-primary);font-size:12px;display:inline-flex;align-items:center;gap:4px"><span class="dot-spinner dot-spinner-sm"></span>{{trackingProgress}}</span>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" @click="showImport=true">导入</button>
+      <button class="btn btn-ghost" @click="showExport=true">导出</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="cb-col" style="width:36px"><input type="checkbox" :checked="allChecked" @change="toggleAll"></th>
+          <th style="width:130px">查询时间</th>
+          <th style="width:200px" class="sortable" :class="sortCls('tracking_number')" @click="toggleSort('tracking_number')">物流单号<span class="sort-icon"><span class="up">▲</span><span class="down">▼</span></span></th>
+          <th style="width:218px" class="sortable" :class="timeSortCls" @click="cycleTimeSort">时间<span style="font-size:9px;margin-left:3px;opacity:.7">{{timeSortLabel}}</span></th>
+          <th style="width:120px">时效</th>
+          <th style="width:105px" class="sortable" :class="sortCls('main_status')" @click="toggleSort('main_status')">状态<span class="sort-icon"><span class="up">▲</span><span class="down">▼</span></span></th>
+          <th style="width:75px">目的国</th>
+          <th>轨迹</th>
+          <th style="width:180px">备注</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-if="loading && !parcels.length"><td colspan="9" class="empty-state"><span class="dot-spinner"></span> 加载中...</td></tr>
+        <tr v-if="!loading && !parcels.length"><td colspan="9" class="empty-state">暂无数据，请导入单号</td></tr>
+        <tr v-for="p in parcels" :key="p.tracking_number">
+          <td class="cb-col"><input type="checkbox" :checked="selected.has(p.tracking_number)" @change="toggleSelect(p.tracking_number)"></td>
+          <td class="query-time-cell">
+            <div v-if="trackingProgress && p.main_status==='查询不到'" style="display:flex;align-items:center;gap:4px">
+              <span class="dot-spinner dot-spinner-sm"></span><span style="font-size:10px;color:var(--color-text-secondary)">查询中</span>
+            </div>
+            <template v-else>
+              <span :class="{'query-warn':p.main_status==='查询不到' && p.last_fetched_at}">{{fmtTime(p.last_fetched_at)}}</span>
+              <div v-if="p.main_status==='查询不到' && p.last_fetched_at" class="query-warn-text">⚠ 查询失败</div>
+            </template>
+          </td>
+          <td>
+            <div class="tn-cell" @click="copyTN(p.tracking_number)" :title="'点击复制 '+p.tracking_number">{{p.tracking_number}}</div>
+          </td>
+          <td class="time-cell">
+            <p><span class="lbl">发货</span><span>{{fmtTime(p.shipped_at)}}</span></p>
+            <p><span class="lbl">收货</span><span>{{fmtTime(p.delivered_at)}}</span></p>
+          </td>
+          <td class="aging-cell">
+            <p>运输 {{p.aging?.transit??'-'}}天</p>
+            <p>停留 {{p.aging?.dwell??'-'}}天</p>
+            <p>签收 {{p.aging?.delivered??'-'}}天</p>
+          </td>
+          <td><span class="status-badge" :style="{background:statusColor(p.main_status)}">{{p.main_status}}</span></td>
+          <td class="dest-cell">{{p.destination_country||'美国'}}</td>
+          <td class="track-cell">
+            <template v-if="p.events && p.events.length">
+              <div class="track-header" @click="toggleTrack(p.tracking_number)">
+                <svg class="track-chevron" :class="{open:expandedTracks.has(p.tracking_number)}" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                <div class="track-brief">
+                  <div class="track-brief-time">{{fmtTime(p.events[0].time)}}</div>
+                  <div class="track-brief-desc">{{p.events[0].description}}</div>
+                  <div class="track-brief-loc" v-if="p.events[0].location">{{p.events[0].location}}</div>
+                </div>
+              </div>
+              <template v-if="expandedTracks.has(p.tracking_number)">
+                <div class="track-detail">
+                  <div class="track-event" v-for="(ev,i) in p.events.slice(1)" :key="i">
+                    <div class="track-event-time">{{fmtTime(ev.time)}}</div>
+                    <div class="track-event-desc">{{ev.description}}</div>
+                    <div class="track-event-loc" v-if="ev.location">{{ev.location}}</div>
+                  </div>
+                </div>
+                <div class="track-link"><a :href="'https://tools.usps.com/go/TrackConfirmAction?tLabels='+p.tracking_number" target="_blank">详情轨迹</a></div>
+              </template>
+            </template>
+            <span v-else class="track-no-data">暂无轨迹</span>
+          </td>
+          <td class="remark-cell">
+            <div v-if="p.remark">{{p.remark}}</div>
+            <a class="remark-link" @click.prevent="editRemark(p)">修改备注</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- Bottom bar -->
+<div class="bottom-bar" :style="{left:sidebarCollapsed?'0':'200px'}">
+  <div class="bottom-actions">
+    <button class="btn btn-ghost btn-sm" @click="batchDelete" :disabled="!selected.size">🗑 删除选中({{selected.size}})</button>
+    <button class="btn btn-ghost btn-sm" @click="batchRefresh" :disabled="!selected.size||refreshing">
+      <span v-if="refreshing" class="dot-spinner dot-spinner-sm"></span> 重新获取轨迹
+    </button>
+  </div>
+  <div class="pagination">
+    <select class="page-select" v-model.number="pageSize" @change="doSearch">
+      <option :value="20">20条/页</option>
+      <option :value="50">50条/页</option>
+      <option :value="100">100条/页</option>
+    </select>
+    <button class="page-btn" :disabled="page<=1" @click="page--;doSearch()">&lt;</button>
+    <button v-for="pn in visiblePages" :key="pn" class="page-btn" :class="{active:pn===page}" @click="page=pn;doSearch()">{{pn}}</button>
+    <button class="page-btn" :disabled="page>=totalPages" @click="page++;doSearch()">&gt;</button>
+    <div class="page-jump">前往 <input type="number" v-model.number="jumpPage" min="1" :max="totalPages" @keyup.enter="page=Math.max(1,Math.min(totalPages,jumpPage));doSearch()"> 页</div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" v-if="showImport" @mousedown.self="overlayMD=true" @mouseup.self="if(overlayMD)showImport=false;overlayMD=false" @mouseup="overlayMD=false">
+  <div class="modal">
+    <div class="modal-header">导入单号<button class="modal-close" @click="showImport=false">&times;</button></div>
+    <div class="modal-body">
+      <div class="import-carrier">
+        <label>物流商 *</label>
+        <div class="val">USPS（美国邮政）</div>
+      </div>
+      <div>
+        <label style="font-weight:500;font-size:12px">物流单号 *</label>
+        <textarea class="import-textarea" v-model="importText" placeholder="最大支持导入500条，单号之间用 Enter 键隔开"></textarea>
+        <div class="import-counter">{{importCount}}/500</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" @click="showImport=false">取消</button>
+      <button class="btn btn-primary" @click="doImport" :disabled="importCount===0||importCount>500||importing">
+        <span v-if="importing" class="dot-spinner dot-spinner-sm"></span> 开始上传
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" v-if="showExport" @mousedown.self="overlayMD=true" @mouseup.self="if(overlayMD)showExport=false;overlayMD=false" @mouseup="overlayMD=false">
+  <div class="modal">
+    <div class="modal-header">导出<button class="modal-close" @click="showExport=false">&times;</button></div>
+    <div class="modal-body">
+      <div class="export-select-all"><input type="checkbox" :checked="exportAllCols" @change="toggleExportAll"> 全选</div>
+      <div class="export-cols">
+        <label v-for="c in exportColOptions" :key="c.key" class="export-col-item">
+          <input type="checkbox" :checked="exportCols.has(c.key)" @change="toggleExportCol(c.key)"> {{c.label}}
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" @click="showExport=false">取消</button>
+      <button class="btn btn-primary" @click="doExport" :disabled="!exportCols.size||exporting">
+        <span v-if="exporting" class="dot-spinner dot-spinner-sm"></span> 开始导出
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Remark Edit Modal -->
+<div class="modal-overlay" v-if="remarkModal.show" @mousedown.self="overlayMD=true" @mouseup.self="if(overlayMD)remarkModal.show=false;overlayMD=false" @mouseup="overlayMD=false">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">修改备注<button class="modal-close" @click="remarkModal.show=false">&times;</button></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:6px">单号: {{remarkModal.tn}}</div>
+      <textarea v-model="remarkModal.text" rows="3" style="width:100%;font-size:13px;padding:8px;border:1px solid var(--color-border);border-radius:var(--input-radius)"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" @click="remarkModal.show=false">取消</button>
+      <button class="btn btn-primary" @click="saveRemark">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div class="toast">
+  <div v-for="t in toasts" :key="t.id" class="toast-item" :class="'toast-'+t.type">{{t.msg}}</div>
+</div>
 </div>
 
 <script>
-const { createApp, ref, computed, reactive, watch } = Vue;
-
-const STATUS_DEFS = [
-    { key: 'all',              label: 'All',              color: '#909399' },
-    { key: 'delivered',        label: 'Delivered',        color: '#67c23a' },
-    { key: 'transit',          label: 'In Transit',       color: '#409eff' },
-    { key: 'out_for_delivery', label: 'Out for Delivery', color: '#e6a23c' },
-    { key: 'pre_shipment',     label: 'Pre-Shipment',     color: '#a855f7' },
-    { key: 'alert',            label: 'Alert / Exception',color: '#f56c6c' },
-    { key: 'error',            label: 'Error',            color: '#ef4444' },
-    { key: 'unknown',          label: 'Unknown',          color: '#c0c4cc' },
-];
-
-const STATUS_CLASS_MAP = {
-    delivered: 'status-delivered',
-    transit: 'status-transit',
-    out_for_delivery: 'status-out-for-delivery',
-    pre_shipment: 'status-pre-shipment',
-    alert: 'status-alert',
-    error: 'status-error',
-    unknown: 'status-unknown',
+const MultiSelect={
+  props:['modelValue','options','placeholder','searchable'],
+  emits:['update:modelValue'],
+  data(){return{open:false,search:''}},
+  computed:{
+    filtered(){
+      if(!this.search)return this.options;
+      const s=this.search.toLowerCase();
+      return this.options.filter(o=>o.toLowerCase().includes(s));
+    },
+    displayTags(){return(this.modelValue||[]).slice(0,3)},
+    moreCount(){return Math.max(0,(this.modelValue||[]).length-3)},
+  },
+  methods:{
+    toggle(opt){
+      const v=[...(this.modelValue||[])];
+      const i=v.indexOf(opt);
+      if(i>=0)v.splice(i,1);else v.push(opt);
+      this.$emit('update:modelValue',v);
+    },
+    remove(opt){
+      const v=(this.modelValue||[]).filter(x=>x!==opt);
+      this.$emit('update:modelValue',v);
+    },
+    isSelected(opt){return(this.modelValue||[]).includes(opt)},
+    close(e){if(!this.$el.contains(e.target))this.open=false},
+  },
+  mounted(){document.addEventListener('click',this.close)},
+  unmounted(){document.removeEventListener('click',this.close)},
+  template:`<div class="multi-select">
+    <div class="ms-trigger" :class="{open}" @click="open=!open">
+      <template v-if="displayTags.length">
+        <span v-for="t in displayTags" :key="t" class="ms-tag">{{t}}<span class="ms-tag-close" @click.stop="remove(t)">&times;</span></span>
+        <span v-if="moreCount" class="ms-tag">+{{moreCount}}</span>
+      </template>
+      <span v-else class="ms-placeholder">{{placeholder||'请选择'}}</span>
+    </div>
+    <div class="ms-dropdown" v-if="open">
+      <div class="ms-search" v-if="searchable"><input type="text" v-model="search" placeholder="搜索..." @click.stop></div>
+      <div class="ms-list">
+        <div v-for="opt in filtered" :key="opt" class="ms-option" :class="{selected:isSelected(opt)}" @click.stop="toggle(opt)">
+          <input type="checkbox" :checked="isSelected(opt)" tabindex="-1"> {{opt}}
+        </div>
+      </div>
+    </div>
+  </div>`
 };
 
-function classifyStatus(item) {
-    if (item.error) return 'error';
-    if (!item.data || !item.data.status) return 'unknown';
-    const s = item.data.status.toLowerCase();
-    if (s.includes('deliver') && !s.includes('out for')) return 'delivered';
-    if (s.includes('out for delivery')) return 'out_for_delivery';
-    if (s.includes('transit') || s.includes('accepted') || s.includes('processed') || s.includes('arrived') || s.includes('departed') || s.includes('origin') || s.includes('in transit')) return 'transit';
-    if (s.includes('alert') || s.includes('exception') || s.includes('return') || s.includes('undeliverable')) return 'alert';
-    if (s.includes('pre-shipment') || s.includes('shipping label') || s.includes('label created') || s.includes('awaiting')) return 'pre_shipment';
-    return 'unknown';
-}
+const{createApp,ref,reactive,computed,onMounted,watch}=Vue;
+const app=createApp({
+  components:{MultiSelect},
+  setup(){
+    const mainStatusList=["全部","查询不到","暂未上线","运输途中","已上网","已交航","到达目的国","到达待取","派送途中","投递失败","可能异常","运输过久","签收成功","包裹退回"];
+    const subStatusList=["全部","查询不到","无效的单号","暂未上线","运输途中","已上网","已交航","到达目的国","清关中","清关完成","航班起飞","航班抵达","到达待取","派送途中","签收成功","投递失败","找不到收件人","地址有误","拒收包裹","安全原因","可能异常","包裹丢失","包裹损坏","物流单被取消","运输延迟","可能被拒收","可能安全原因","可能地址有误","可能没人签收","签收超时","轨迹更新异常","上网超时","等待交税","清关失败","运输过久","包裹退回","退回已签收","退回处理中"];
+    const countryList=["全部","(未知)","AF-阿富汗","AL-阿尔巴尼亚","DZ-阿尔及利亚","AD-安道尔","AO-安哥拉","AR-阿根廷","AM-亚美尼亚","AU-澳大利亚","AT-奥地利","AZ-阿塞拜疆","BS-巴哈马","BH-巴林","BD-孟加拉国","BB-巴巴多斯","BY-白俄罗斯","BE-比利时","BZ-伯利兹","BJ-贝宁","BT-不丹","BO-玻利维亚","BA-波斯尼亚和黑塞哥维那","BW-博茨瓦纳","BR-巴西","BN-文莱","BG-保加利亚","BF-布基纳法索","BI-布隆迪","KH-柬埔寨","CM-喀麦隆","CA-加拿大","CL-智利","CN-中国","CO-哥伦比亚","CG-刚果（布）","CD-刚果（金）","CR-哥斯达黎加","HR-克罗地亚","CU-古巴","CY-塞浦路斯","CZ-捷克","DK-丹麦","DO-多米尼加","EC-厄瓜多尔","EG-埃及","SV-萨尔瓦多","EE-爱沙尼亚","ET-埃塞俄比亚","FJ-斐济","FI-芬兰","FR-法国","GA-加蓬","GE-格鲁吉亚","DE-德国","GH-加纳","GR-希腊","GT-危地马拉","GN-几内亚","GY-圭亚那","HT-海地","HN-洪都拉斯","HK-香港[CN]","HU-匈牙利","IS-冰岛","IN-印度","ID-印尼","IR-伊朗","IQ-伊拉克","IE-爱尔兰","IL-以色列","IT-意大利","JM-牙买加","JP-日本","JO-约旦","KZ-哈萨克斯坦","KE-肯尼亚","KR-韩国","KW-科威特","KG-吉尔吉斯斯坦","LA-老挝","LV-拉脱维亚","LB-黎巴嫩","LY-利比亚","LT-立陶宛","LU-卢森堡","MO-澳门[CN]","MG-马达加斯加","MY-马来西亚","MV-马尔代夫","ML-马里","MT-马耳他","MX-墨西哥","MD-摩尔多瓦","MC-摩纳哥","MN-蒙古国","ME-黑山","MA-摩洛哥","MZ-莫桑比克","MM-缅甸","NA-纳米比亚","NP-尼泊尔","NL-荷兰","NZ-新西兰","NI-尼加拉瓜","NE-尼日尔","NG-尼日利亚","MK-北马其顿","NO-挪威","OM-阿曼","PK-巴基斯坦","PA-巴拿马","PY-巴拉圭","PE-秘鲁","PH-菲律宾","PL-波兰","PT-葡萄牙","PR-波多黎各","QA-卡塔尔","RO-罗马尼亚","RU-俄罗斯","RW-卢旺达","SA-沙特阿拉伯","SN-塞内加尔","RS-塞尔维亚","SG-新加坡","SK-斯洛伐克","SI-斯洛文尼亚","ZA-南非","ES-西班牙","LK-斯里兰卡","SD-苏丹","SE-瑞典","CH-瑞士","SY-叙利亚","TW-台湾[CN]","TJ-塔吉克斯坦","TZ-坦桑尼亚","TH-泰国","TG-多哥","TT-特立尼达和多巴哥","TN-突尼斯","TR-土耳其","TM-土库曼斯坦","UG-乌干达","UA-乌克兰","AE-阿联酋","GB-英国","US-美国","UY-乌拉圭","UZ-乌兹别克斯坦","VE-委内瑞拉","VN-越南","YE-也门","ZM-赞比亚","ZW-津巴布韦","RA-美国偏远地区","AA-美国军队","XK-科索沃"];
+    const exportColOptions=[
+      {key:'shipped_at',label:'发货时间'},{key:'added_at',label:'添加时间'},
+      {key:'last_fetched_at',label:'最近获取时间'},{key:'tracking_number',label:'物流单号'},
+      {key:'carrier',label:'物流商'},{key:'main_status',label:'状态'},
+      {key:'sub_status',label:'子状态'},{key:'destination_country',label:'目的国'},
+      {key:'latest_event',label:'末条轨迹事件'},{key:'online_event',label:'上网轨迹'},
+      {key:'delivery_event',label:'签收轨迹'},{key:'transit_days',label:'运输(天)'},
+      {key:'delivered_days',label:'签收(天)'},{key:'remark',label:'备注'},
+      {key:'tags',label:'标签'},
+    ];
 
-const app = createApp({
-    setup() {
-        const inputText = ref('');
-        const results = ref([]);
-        const loading = ref(false);
-        const queryNumbers = ref([]);
+    const colorMap={"签收成功":"#28a745","运输途中":"#5c67f2","已上网":"#5c67f2","已交航":"#5c67f2","到达目的国":"#5c67f2","派送途中":"#17a2b8","到达待取":"#17a2b8","投递失败":"#dc3545","可能异常":"#dc3545","运输过久":"#dc3545","包裹退回":"#dc3545","暂未上线":"#7f8c8d","查询不到":"#7f8c8d"};
+    const statusColor=s=>colorMap[s]||'#7f8c8d';
 
-        const searchQuery = ref('');
-        const currentFilter = ref('all');
-        const statusFilter = ref([]);
-        const hasEventsFilter = ref('');
-        const sortBy = ref('original');
-        const currentPage = ref(1);
-        const pageSize = ref(20);
+    const sidebarCollapsed=ref(false);
+    const menuOpen=reactive({trackList:true});
+    const sidebarActive=ref('全部');
+    const stats=ref({});
 
-        const showDetailDialog = ref(false);
-        const detailItem = ref(null);
-        const expandedRows = reactive({});
+    const filters=reactive({shippedFrom:'',shippedTo:'',deliveredFrom:'',deliveredTo:'',mainStatus:[],subStatus:[],destination:[],trackingInput:'',remarkText:''});
+    const showBatchInput=ref(false);
+    const sortField=ref('shipped_at');
+    const sortOrder=ref('desc');
+    const page=ref(1);
+    const pageSize=ref(20);
+    const jumpPage=ref(1);
 
-        function statusText(item) {
-            if (item.error) return 'Error';
-            return (item.data && item.data.status) || 'Unknown';
+    const parcels=ref([]);
+    const totalCount=ref(0);
+    const totalPages=ref(1);
+    const loading=ref(false);
+    const selected=ref(new Set());
+    const refreshing=ref(false);
+
+    // date picker
+    const activeDatePanel=ref('');
+    const calBase=ref(new Date());
+    const calSelectState=ref(0);
+
+    const fmtDate=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return`${y}-${m}-${dd}`};
+    const shippedRangeText=computed(()=>{
+      if(filters.shippedFrom&&filters.shippedTo)return`${filters.shippedFrom} ~ ${filters.shippedTo}`;
+      return'';
+    });
+    const deliveredRangeText=computed(()=>{
+      if(filters.deliveredFrom&&filters.deliveredTo)return`${filters.deliveredFrom} ~ ${filters.deliveredTo}`;
+      return'';
+    });
+    const openDatePanel=which=>{
+      if(activeDatePanel.value===which){activeDatePanel.value='';return;}
+      activeDatePanel.value=which;calSelectState.value=0;
+    };
+    const clearDateRange=which=>{
+      if(which==='shipped'){filters.shippedFrom='';filters.shippedTo='';}
+      else{filters.deliveredFrom='';filters.deliveredTo='';}
+      activeDatePanel.value='';
+    };
+    const setDateShortcut2=(which,type)=>{
+      const now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+      let from,to=fmtDate(today);
+      if(type==='today'){from=to;}
+      else if(type==='yesterday'){const y=new Date(today);y.setDate(y.getDate()-1);from=to=fmtDate(y);}
+      else if(type==='week'){const w=new Date(today);w.setDate(w.getDate()-7);from=fmtDate(w);}
+      else if(type==='month1'){const m=new Date(today);m.setMonth(m.getMonth()-1);from=fmtDate(m);}
+      else if(type==='month2'){const m=new Date(today);m.setMonth(m.getMonth()-2);from=fmtDate(m);}
+      else if(type==='month3'){const m=new Date(today);m.setMonth(m.getMonth()-3);from=fmtDate(m);}
+      if(which==='shipped'){filters.shippedFrom=from;filters.shippedTo=to;}
+      else{filters.deliveredFrom=from;filters.deliveredTo=to;}
+      activeDatePanel.value='';
+    };
+    const getCalDays=(year,month)=>{
+      const firstDay=new Date(year,month,1).getDay();
+      const daysInMonth=new Date(year,month+1,0).getDate();
+      const prevDays=new Date(year,month,0).getDate();
+      const days=[];
+      for(let i=firstDay-1;i>=0;i--){days.push({day:prevDays-i,month:month-1,year,other:true,key:`p${prevDays-i}`});}
+      const today=new Date();const todayStr=fmtDate(today);
+      for(let d=1;d<=daysInMonth;d++){
+        const dt=new Date(year,month,d);const str=fmtDate(dt);
+        days.push({day:d,month,year,dateStr:str,today:str===todayStr,disabled:dt>today,key:`c${d}`});
+      }
+      const rem=42-days.length;
+      for(let d=1;d<=rem;d++){days.push({day:d,month:month+1,year,other:true,disabled:true,key:`n${d}`});}
+      return days;
+    };
+    const calLeftTitle=computed(()=>{const d=calBase.value;const m=new Date(d.getFullYear(),d.getMonth()-1,1);return`${m.getFullYear()} 年 ${m.getMonth()+1} 月`});
+    const calRightTitle=computed(()=>{const d=calBase.value;return`${d.getFullYear()} 年 ${d.getMonth()+1} 月`});
+    const calLeftDays=computed(()=>{const d=calBase.value;const m=new Date(d.getFullYear(),d.getMonth()-1,1);return getCalDays(m.getFullYear(),m.getMonth())});
+    const calRightDays=computed(()=>{const d=calBase.value;return getCalDays(d.getFullYear(),d.getMonth())});
+    const calMonth=delta=>{const d=new Date(calBase.value);d.setMonth(d.getMonth()+delta);calBase.value=d;};
+    const _activeFrom=()=>activeDatePanel.value==='shipped'?'shippedFrom':'deliveredFrom';
+    const _activeTo=()=>activeDatePanel.value==='shipped'?'shippedTo':'deliveredTo';
+    const calDayClass=d=>{
+      const cls={};
+      if(d.other)cls['other-month']=true;
+      if(d.disabled)cls['disabled']=true;
+      if(d.today)cls['today']=true;
+      const af=filters[_activeFrom()],at=filters[_activeTo()];
+      if(d.dateStr&&af&&at){
+        if(d.dateStr===af)cls['start-date']=true;
+        if(d.dateStr===at)cls['end-date']=true;
+        if(d.dateStr>=af&&d.dateStr<=at)cls['in-range']=true;
+      }
+      return cls;
+    };
+    const onCalClick=d=>{
+      if(d.disabled||d.other)return;
+      const fk=_activeFrom(),tk=_activeTo();
+      if(calSelectState.value===0){filters[fk]=d.dateStr;filters[tk]='';calSelectState.value=1;}
+      else{
+        if(d.dateStr<filters[fk]){filters[tk]=filters[fk];filters[fk]=d.dateStr;}
+        else{filters[tk]=d.dateStr;}
+        calSelectState.value=0;activeDatePanel.value='';
+      }
+    };
+
+    // toasts
+    const toasts=ref([]);
+    let toastId=0;
+    const toast=(msg,type='info')=>{const id=++toastId;toasts.value.push({id,msg,type});setTimeout(()=>{toasts.value=toasts.value.filter(t=>t.id!==id)},3000)};
+
+    // modals
+    const showImport=ref(false);
+    const importText=ref('');
+    const importing=ref(false);
+    const importCount=computed(()=>{const lines=importText.value.split('\n').map(l=>l.trim()).filter(Boolean);return lines.length});
+    const showExport=ref(false);
+    const exportCols=ref(new Set(['tracking_number','carrier','main_status','sub_status','destination_country','shipped_at','added_at','latest_event','remark']));
+    const exporting=ref(false);
+    const exportAllCols=computed(()=>exportCols.value.size===exportColOptions.length);
+    const toggleExportAll=()=>{if(exportAllCols.value)exportCols.value=new Set();else exportCols.value=new Set(exportColOptions.map(c=>c.key))};
+    const toggleExportCol=k=>{const s=new Set(exportCols.value);if(s.has(k))s.delete(k);else s.add(k);exportCols.value=s};
+
+    const overlayMD=ref(false);
+    const remarkModal=reactive({show:false,tn:'',text:''});
+    const editRemark=p=>{remarkModal.tn=p.tracking_number;remarkModal.text=p.remark||'';remarkModal.show=true};
+    const saveRemark=async()=>{
+      await fetch('/api/parcels/remark',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_number:remarkModal.tn,remark:remarkModal.text})});
+      remarkModal.show=false;toast('备注已保存','success');doSearch();
+    };
+
+    // data
+    const fetchStats=async()=>{
+      try{const r=await fetch('/api/parcels/stats');stats.value=await r.json()}catch(e){console.error(e)}
+    };
+    const doSearch=async()=>{
+      loading.value=true;
+      const params=new URLSearchParams({page:page.value,page_size:pageSize.value,sort_field:sortField.value,sort_order:sortOrder.value});
+      if(filters.shippedFrom)params.set('shipped_at_from',filters.shippedFrom);
+      if(filters.shippedTo)params.set('shipped_at_to',filters.shippedTo);
+      if(filters.deliveredFrom)params.set('delivered_at_from',filters.deliveredFrom);
+      if(filters.deliveredTo)params.set('delivered_at_to',filters.deliveredTo);
+      (filters.mainStatus||[]).forEach(s=>params.append('main_status',s));
+      (filters.destination||[]).forEach(s=>params.append('destination',s));
+      if(filters.trackingInput.trim())params.set('tracking_numbers',filters.trackingInput.trim());
+      if(filters.remarkText)params.set('remark',filters.remarkText);
+      try{
+        const r=await fetch('/api/parcels?'+params);const j=await r.json();
+        parcels.value=j.data||[];totalCount.value=j.total||0;totalPages.value=j.total_pages||1;
+      }catch(e){toast('加载失败: '+e.message,'error')}
+      loading.value=false;selected.value=new Set();
+      fetchStats();
+    };
+
+    const allChecked=computed(()=>parcels.value.length>0&&parcels.value.every(p=>selected.value.has(p.tracking_number)));
+    const toggleAll=()=>{
+      if(allChecked.value)selected.value=new Set();
+      else selected.value=new Set(parcels.value.map(p=>p.tracking_number));
+    };
+    const toggleSelect=tn=>{const s=new Set(selected.value);if(s.has(tn))s.delete(tn);else s.add(tn);selected.value=s};
+
+    const visiblePages=computed(()=>{
+      const tp=totalPages.value,cp=page.value;
+      const pages=[];
+      let start=Math.max(1,cp-2),end=Math.min(tp,cp+2);
+      if(end-start<4){if(start===1)end=Math.min(tp,5);else start=Math.max(1,tp-4);}
+      for(let i=start;i<=end;i++)pages.push(i);
+      return pages;
+    });
+
+    const expandedTracks=ref(new Set());
+    const toggleTrack=tn=>{const s=new Set(expandedTracks.value);if(s.has(tn))s.delete(tn);else s.add(tn);expandedTracks.value=s};
+
+    const fmtTime=t=>{if(!t)return'-';return t.replace('T',' ').substring(0,19)};
+    const copyTN=async tn=>{try{await navigator.clipboard.writeText(tn);toast('已复制: '+tn,'success')}catch(e){toast('复制失败','error')}};
+    const toggleSort=field=>{
+      if(sortField.value===field){sortOrder.value=sortOrder.value==='desc'?'asc':'desc';}
+      else{sortField.value=field;sortOrder.value='desc';}
+      page.value=1;doSearch();
+    };
+    const sortCls=field=>({'sort-asc':sortField.value===field&&sortOrder.value==='asc','sort-desc':sortField.value===field&&sortOrder.value==='desc'});
+
+    const _timeSortStates=[{f:'shipped_at',o:'desc'},{f:'shipped_at',o:'asc'},{f:'delivered_at',o:'desc'},{f:'delivered_at',o:'asc'}];
+    const _timeSortLabels=['发货↓','发货↑','收货↓','收货↑'];
+    const timeSortIdx=ref(0);
+    const cycleTimeSort=()=>{
+      timeSortIdx.value=(timeSortIdx.value+1)%4;
+      const s=_timeSortStates[timeSortIdx.value];
+      sortField.value=s.f;sortOrder.value=s.o;
+      page.value=1;doSearch();
+    };
+    const timeSortLabel=computed(()=>_timeSortLabels[timeSortIdx.value]);
+    const timeSortCls=computed(()=>({
+      'sort-asc':_timeSortStates[timeSortIdx.value].o==='asc',
+      'sort-desc':_timeSortStates[timeSortIdx.value].o==='desc',
+    }));
+
+    let _filterTimer=null;
+    const debouncedSearch=()=>{
+      clearTimeout(_filterTimer);
+      _filterTimer=setTimeout(()=>{page.value=1;doSearch()},300);
+    };
+
+    const onSidebarClick=s=>{
+      sidebarActive.value=s;
+      filters.mainStatus=s==='全部'?[]:[s];
+    };
+
+    const trackingProgress=ref('');
+    let _pollTimer=null;
+    const _startTrackPoll=()=>{
+      if(_pollTimer)clearInterval(_pollTimer);
+      _pollTimer=setInterval(async()=>{
+        try{
+          const r=await fetch('/api/parcels/track_status');const s=await r.json();
+          if(s.running){
+            trackingProgress.value=`正在查询轨迹 (${s.done}/${s.total})...`;
+            doSearch();
+          }else{
+            trackingProgress.value='';
+            clearInterval(_pollTimer);_pollTimer=null;
+            doSearch();
+            if(s.total>0)toast(`轨迹查询完成: 成功 ${s.ok}，失败 ${s.errors}`,'success');
+          }
+        }catch(e){console.error(e)}
+      },5000);
+    };
+
+    const _buildFilterParams=()=>{
+      const params=new URLSearchParams({page:1,page_size:99999,sort_field:sortField.value,sort_order:sortOrder.value});
+      if(filters.shippedFrom)params.set('shipped_at_from',filters.shippedFrom);
+      if(filters.shippedTo)params.set('shipped_at_to',filters.shippedTo);
+      if(filters.deliveredFrom)params.set('delivered_at_from',filters.deliveredFrom);
+      if(filters.deliveredTo)params.set('delivered_at_to',filters.deliveredTo);
+      (filters.mainStatus||[]).forEach(s=>params.append('main_status',s));
+      (filters.destination||[]).forEach(s=>params.append('destination',s));
+      if(filters.trackingInput.trim())params.set('tracking_numbers',filters.trackingInput.trim());
+      if(filters.remarkText.trim())params.set('remark',filters.remarkText.trim());
+      return params;
+    };
+    const doTrackAll=async()=>{
+      if(trackingProgress.value)return;
+      trackingProgress.value='正在准备查询...';
+      try{
+        const inputLines=filters.trackingInput.trim()?filters.trackingInput.trim().split('\n').map(l=>l.trim()).filter(Boolean):[];
+        if(inputLines.length){
+          await fetch('/api/parcels/import_merge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_numbers:inputLines})});
         }
-        function statusClass(item) {
-            return STATUS_CLASS_MAP[classifyStatus(item)] || 'status-unknown';
-        }
+        const params=_buildFilterParams();
+        const filteredR=await fetch('/api/parcels?'+params);
+        const filteredJ=await filteredR.json();
+        const filteredNums=(filteredJ.data||[]).map(p=>p.tracking_number);
+        const allR=await fetch('/api/parcels?page=1&page_size=99999');
+        const allJ=await allR.json();
+        const allNums=(allJ.data||[]).map(p=>p.tracking_number);
+        const seen=new Set();
+        const ordered=[];
+        for(const tn of inputLines){if(!seen.has(tn)){seen.add(tn);ordered.push(tn);}}
+        for(const tn of filteredNums){if(!seen.has(tn)){seen.add(tn);ordered.push(tn);}}
+        for(const tn of allNums){if(!seen.has(tn)){seen.add(tn);ordered.push(tn);}}
+        if(!ordered.length){trackingProgress.value='';toast('无单号可查询','info');return;}
+        await fetch('/api/parcels/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_numbers:ordered})});
+        doSearch();
+        _startTrackPoll();
+      }catch(e){trackingProgress.value='';toast('查询失败: '+e.message,'error')}
+    };
 
-        const sidebarItems = computed(() => {
-            const counts = {};
-            STATUS_DEFS.forEach(d => counts[d.key] = 0);
-            counts.all = results.value.length;
-            results.value.forEach(item => {
-                const c = classifyStatus(item);
-                if (counts[c] !== undefined) counts[c]++;
-            });
-            return STATUS_DEFS.map(d => ({ ...d, count: counts[d.key] }))
-                .filter(d => d.key === 'all' || d.count > 0);
-        });
+    const doImport=async()=>{
+      const lines=importText.value.split('\n').map(l=>l.trim()).filter(Boolean);
+      if(!lines.length)return;
+      importing.value=true;
+      try{
+        const r=await fetch('/api/parcels/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_numbers:lines})});
+        const j=await r.json();
+        toast(`已导入 ${j.added} 条，正在后台查询轨迹...`,'info');
+        importText.value='';showImport.value=false;
+        sidebarActive.value='全部';filters.mainStatus=[];page.value=1;
+        doSearch();
+        _startTrackPoll();
+      }catch(e){toast('导入失败: '+e.message,'error')}
+      importing.value=false;
+    };
 
-        const allStatusOptions = computed(() => {
-            return STATUS_DEFS.filter(d => d.key !== 'all').map(d => ({ label: d.label, value: d.key }));
-        });
+    const doExport=async()=>{
+      exporting.value=true;
+      const tns=selected.value.size?[...selected.value]:[];
+      const cols=[...exportCols.value];
+      try{
+        const r=await fetch('/api/parcels/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_numbers:tns,columns:cols})});
+        if(!r.ok)throw new Error(await r.text());
+        const blob=await r.blob();
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');a.href=url;a.download='parcels_export.xlsx';a.click();
+        URL.revokeObjectURL(url);toast('导出成功','success');showExport.value=false;
+      }catch(e){toast('导出失败: '+e.message,'error')}
+      exporting.value=false;
+    };
 
-        const filteredResults = computed(() => {
-            let list = results.value;
+    const batchDelete=async()=>{
+      if(!selected.value.size||!confirm(`确定删除 ${selected.value.size} 条记录？`))return;
+      try{
+        const r=await fetch('/api/parcels/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_numbers:[...selected.value]})});
+        const j=await r.json();toast(`已删除 ${j.deleted} 条`,'success');doSearch();
+      }catch(e){toast('删除失败','error')}
+    };
 
-            if (currentFilter.value !== 'all') {
-                list = list.filter(item => classifyStatus(item) === currentFilter.value);
-            }
+    const batchRefresh=async()=>{
+      if(!selected.value.size)return;
+      refreshing.value=true;toast('正在获取轨迹，请稍候...','info');
+      try{
+        const r=await fetch('/api/parcels/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_numbers:[...selected.value]})});
+        const j=await r.json();toast(`轨迹刷新完成: 成功 ${j.refreshed}，失败 ${j.errors}`,'success');doSearch();
+      }catch(e){toast('刷新失败: '+e.message,'error')}
+      refreshing.value=false;
+    };
 
-            if (statusFilter.value.length > 0) {
-                list = list.filter(item => statusFilter.value.includes(classifyStatus(item)));
-            }
+    // close date panel on outside click
+    watch(filters,()=>debouncedSearch(),{deep:true});
 
-            if (searchQuery.value.trim()) {
-                const q = searchQuery.value.trim().toLowerCase();
-                list = list.filter(item => item.tracking_number.toLowerCase().includes(q));
-            }
+    onMounted(()=>{
+      document.addEventListener('click',e=>{if(activeDatePanel.value&&!e.target.closest('.date-range-wrap'))activeDatePanel.value='';});
+      const now=new Date();calBase.value=new Date(now.getFullYear(),now.getMonth(),1);
+      doSearch();
+    });
 
-            if (hasEventsFilter.value === 'yes') {
-                list = list.filter(item => item.data && item.data.events && item.data.events.length > 0);
-            } else if (hasEventsFilter.value === 'no') {
-                list = list.filter(item => !item.data || !item.data.events || item.data.events.length === 0);
-            }
-
-            if (sortBy.value !== 'original') {
-                list = [...list];
-                if (sortBy.value === 'status_asc') list.sort((a, b) => statusText(a).localeCompare(statusText(b)));
-                else if (sortBy.value === 'status_desc') list.sort((a, b) => statusText(b).localeCompare(statusText(a)));
-                else if (sortBy.value === 'events_desc') list.sort((a, b) => ((b.data?.events?.length || 0) - (a.data?.events?.length || 0)));
-                else if (sortBy.value === 'events_asc') list.sort((a, b) => ((a.data?.events?.length || 0) - (b.data?.events?.length || 0)));
-            }
-
-            return list;
-        });
-
-        const pagedResults = computed(() => {
-            const start = (currentPage.value - 1) * pageSize.value;
-            return filteredResults.value.slice(start, start + pageSize.value);
-        });
-
-        function parseInput() {
-            return inputText.value
-                .split(/[\n\r,;]+/)
-                .map(s => s.trim())
-                .filter(s => s.length > 0);
-        }
-
-        async function doQuery() {
-            const numbers = parseInput();
-            if (numbers.length === 0) {
-                ElementPlus.ElMessage.warning('Please enter at least one tracking number');
-                return;
-            }
-            const seen = new Set();
-            const unique = numbers.filter(n => { if (seen.has(n)) return false; seen.add(n); return true; });
-
-            queryNumbers.value = unique;
-            loading.value = true;
-            resetFilters();
-
-            try {
-                const resp = await fetch('/api/track', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tracking_numbers: unique }),
-                });
-                if (!resp.ok) {
-                    const err = await resp.json().catch(() => ({}));
-                    throw new Error(err.error || `HTTP ${resp.status}`);
-                }
-                const data = await resp.json();
-                loadData(data);
-                ElementPlus.ElMessage.success(`Queried ${data.length} tracking number(s)`);
-            } catch (e) {
-                ElementPlus.ElMessage.error('Query failed: ' + e.message);
-            } finally {
-                loading.value = false;
-            }
-        }
-
-        function loadData(data) {
-            if (!Array.isArray(data)) {
-                ElementPlus.ElMessage.error('Invalid data format');
-                return;
-            }
-            results.value = data;
-            resetFilters();
-        }
-
-        function resetFilters() {
-            currentFilter.value = 'all';
-            statusFilter.value = [];
-            searchQuery.value = '';
-            hasEventsFilter.value = '';
-            sortBy.value = 'original';
-            currentPage.value = 1;
-            Object.keys(expandedRows).forEach(k => delete expandedRows[k]);
-        }
-
-        function handleFileUpload(file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    loadData(data);
-                    ElementPlus.ElMessage.success(`Loaded ${data.length} records from file`);
-                } catch (err) {
-                    ElementPlus.ElMessage.error('Failed to parse JSON file');
-                }
-            };
-            reader.readAsText(file);
-            return false;
-        }
-
-        function showDetail(item) {
-            detailItem.value = item;
-            showDetailDialog.value = true;
-        }
-
-        function toggleExpand(tn) {
-            expandedRows[tn] = !expandedRows[tn];
-        }
-
-        function exportFiltered() {
-            const blob = new Blob([JSON.stringify(filteredResults.value, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `tracking_${currentFilter.value}_${new Date().toISOString().slice(0,10)}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function loadDemo() {
-            const demo = [
-                { tracking_number: '9202030335967130381609', error: null, data: { status: 'In Transit to Next Facility', estimated_delivery: 'May 15, 2026', events: [
-                    { date: 'May 12, 2026, 8:34 pm', location: 'MIAMI, FL 33152', description: 'In Transit to Next Facility' },
-                    { date: 'May 11, 2026, 5:12 am', location: 'YBOR CITY, FL 33605', description: 'Arrived at USPS Regional Facility' },
-                    { date: 'May 10, 2026, 11:30 pm', location: 'TAMPA, FL 33630', description: 'Departed USPS Regional Facility' },
-                    { date: 'May 10, 2026, 3:22 pm', location: 'TAMPA, FL 33630', description: 'Arrived at USPS Regional Origin Facility' },
-                    { date: 'May 9, 2026, 6:45 pm', location: 'ORLANDO, FL 32862', description: 'USPS in possession of item' },
-                ]}},
-                { tracking_number: '9202062196581167773349', error: null, data: { status: 'Out for Delivery', estimated_delivery: 'May 12, 2026', events: [
-                    { date: 'May 12, 2026, 7:15 am', location: 'LOS ANGELES, CA 90001', description: 'Out for Delivery' },
-                    { date: 'May 12, 2026, 5:03 am', location: 'LOS ANGELES, CA 90052', description: 'Arrived at Post Office' },
-                    { date: 'May 11, 2026, 9:48 pm', location: 'LOS ANGELES, CA 90052', description: 'Arrived at USPS Facility' },
-                    { date: 'May 10, 2026, 2:30 pm', location: 'INDUSTRY, CA 91744', description: 'Departed USPS Regional Facility' },
-                ]}},
-                { tracking_number: '9202083977671723087231', error: null, data: { status: 'Delivered, Front Door/Porch', estimated_delivery: '', events: [
-                    { date: 'May 11, 2026, 1:22 pm', location: 'NEW YORK, NY 10001', description: 'Delivered, Front Door/Porch' },
-                    { date: 'May 11, 2026, 7:05 am', location: 'NEW YORK, NY 10199', description: 'Out for Delivery' },
-                    { date: 'May 10, 2026, 11:17 pm', location: 'NEW YORK, NY 10199', description: 'Arrived at Post Office' },
-                    { date: 'May 9, 2026, 3:44 pm', location: 'JERSEY CITY, NJ 07097', description: 'Departed USPS Regional Facility' },
-                ]}},
-                { tracking_number: '9202035799523029105887', error: null, data: { status: 'In Transit to Next Facility', estimated_delivery: 'May 16, 2026', events: [
-                    { date: 'May 12, 2026, 2:10 am', location: 'CHICAGO, IL 60629', description: 'In Transit to Next Facility' },
-                    { date: 'May 11, 2026, 8:33 am', location: 'BEDFORD PARK, IL 60499', description: 'Arrived at USPS Regional Facility' },
-                ]}},
-                { tracking_number: '9400111899223387654321', error: null, data: { status: 'Delivered, In/At Mailbox', estimated_delivery: '', events: [
-                    { date: 'May 10, 2026, 11:45 am', location: 'SEATTLE, WA 98101', description: 'Delivered, In/At Mailbox' },
-                    { date: 'May 10, 2026, 6:30 am', location: 'SEATTLE, WA 98134', description: 'Out for Delivery' },
-                ]}},
-                { tracking_number: '9261290100130267438012', error: null, data: { status: 'Alert: Package Returned', estimated_delivery: '', events: [
-                    { date: 'May 11, 2026, 4:30 pm', location: 'HOUSTON, TX 77001', description: 'Return to Sender Processed' },
-                    { date: 'May 9, 2026, 10:15 am', location: 'HOUSTON, TX 77001', description: 'Addressee Unknown' },
-                ]}},
-                { tracking_number: '9505511234567890123456', error: null, data: { status: 'Shipping Label Created, USPS Awaiting Item', estimated_delivery: '', events: [
-                    { date: 'May 8, 2026, 9:00 am', location: '', description: 'Shipping Label Created, USPS Awaiting Item' },
-                ]}},
-                { tracking_number: '9400111899223000000001', error: 'Failed after 1 retry(ies)', data: null },
-            ];
-            loadData(demo);
-            ElementPlus.ElMessage.success('Demo data loaded');
-        }
-
-        return {
-            inputText, results, loading, queryNumbers,
-            searchQuery, currentFilter, statusFilter, hasEventsFilter, sortBy,
-            currentPage, pageSize,
-            showDetailDialog, detailItem, expandedRows,
-            sidebarItems, allStatusOptions, filteredResults, pagedResults,
-            statusText, statusClass,
-            doQuery, handleFileUpload, showDetail, toggleExpand, exportFiltered, loadDemo,
-        };
-    }
+    return{
+      mainStatusList,subStatusList,countryList,exportColOptions,statusColor,
+      sidebarCollapsed,menuOpen,sidebarActive,stats,
+      filters,sortField,sortOrder,page,pageSize,jumpPage,
+      parcels,totalCount,totalPages,loading,selected,refreshing,
+      activeDatePanel,calBase,calLeftTitle,calRightTitle,calLeftDays,calRightDays,
+      calMonth,calDayClass,onCalClick,shippedRangeText,deliveredRangeText,openDatePanel,clearDateRange,setDateShortcut2,
+      toasts,toast,
+      showImport,importText,importing,importCount,trackingProgress,
+      showExport,exportCols,exporting,exportAllCols,toggleExportAll,toggleExportCol,
+      overlayMD,remarkModal,editRemark,saveRemark,
+      allChecked,toggleAll,toggleSelect,visiblePages,
+      expandedTracks,toggleTrack,fmtTime,copyTN,toggleSort,sortCls,cycleTimeSort,timeSortLabel,timeSortCls,onSidebarClick,doSearch,doTrackAll,doImport,doExport,batchDelete,batchRefresh,
+    };
+  }
 });
-
-app.use(ElementPlus);
+app.component('multi-select',MultiSelect);
 app.mount('#app');
 </script>
 </body>
