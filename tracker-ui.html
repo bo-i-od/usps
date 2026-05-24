@@ -409,7 +409,7 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
         查询全部
       </button>
       <span style="margin-left:8px">找到 <span class="text-count">{{totalCount}}</span> 条</span>
-      <span v-if="trackingProgress" style="margin-left:8px;color:var(--color-primary);font-size:12px;display:inline-flex;align-items:center;gap:4px"><span class="dot-spinner dot-spinner-sm"></span>{{trackingProgress}}<button class="track-cancel-btn" @click="cancelTracking" title="取消查询">&times;</button></span>
+      <span v-if="trackingProgress" style="margin-left:8px;color:var(--color-primary);font-size:12px;display:inline-flex;align-items:center;gap:4px"><span class="dot-spinner dot-spinner-sm"></span>{{trackingProgress}}<button v-if="!_cancelling" class="track-cancel-btn" @click="cancelTracking" title="取消查询">&times;</button></span>
       <div style="flex:1"></div>
       <div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-right:8px">
         <label style="white-space:nowrap;color:var(--color-text-secondary)">浏览器</label>
@@ -1212,7 +1212,7 @@ const app=createApp({
       calMonth,calDayClass,onCalClick,shippedRangeText,deliveredRangeText,openDatePanel,clearDateRange,setDateShortcut2,
       toasts,toast,
       browserMode,bitBrowserId,
-      showImport,importText,importing,importCount,importEstimate,checkImportCost,trackingProgress,queryStartedAt,isQuerying,lastTrackResult,trackResultPct,retryFailed,cancelTracking,
+      showImport,importText,importing,importCount,importEstimate,checkImportCost,trackingProgress,queryStartedAt,isQuerying,lastTrackResult,trackResultPct,retryFailed,cancelTracking,_cancelling,
       showExport,exportCols,exporting,exportAllCols,toggleExportAll,toggleExportCol,
       overlayMD,remarkModal,editRemark,saveRemark,
       allChecked,toggleAll,toggleSelect,visiblePages,
