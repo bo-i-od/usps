@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台</title>
+<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+<style>
+:root{--bg-page:#f0f2f5;--bg-card:#fff;--color-primary:#5c67f2;--color-primary-hover:#4e58d9;--color-danger:#dc3545;--color-success:#28a745;--color-warning:#f39c12;--color-text:#2c3e50;--color-text-secondary:#7f8c8d;--color-border:#b0b8c2;--card-radius:8px;--card-shadow:0 2px 8px rgba(0,0,0,.08);--input-radius:6px;--btn-radius:6px;--font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font-family);background:var(--bg-page);color:var(--color-text);line-height:1.6;font-size:14px}
+
+.admin-layout{display:flex;min-height:100vh}
+.admin-sidebar{width:200px;background:linear-gradient(180deg,#2c3e50,#34495e);color:#fff;position:fixed;top:0;left:0;bottom:0;z-index:100;display:flex;flex-direction:column}
+.admin-sidebar h2{padding:20px 16px 16px;font-size:16px;border-bottom:1px solid rgba(255,255,255,.1)}
+.admin-nav{padding:8px 0;flex:1}
+.admin-nav-item{padding:10px 20px;cursor:pointer;font-size:13px;transition:background .15s;display:flex;align-items:center;gap:8px}
+.admin-nav-item:hover{background:rgba(255,255,255,.1)}
+.admin-nav-item.active{background:rgba(255,255,255,.15);border-left:3px solid #fff;padding-left:17px;font-weight:600}
+.admin-sidebar .back-link{padding:12px 20px;font-size:12px;border-top:1px solid rgba(255,255,255,.1);cursor:pointer;opacity:.7}
+.admin-sidebar .back-link:hover{opacity:1}
+
+.admin-main{margin-left:200px;padding:20px;flex:1}
+
+.stat-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+.stat-card{background:#fff;border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:20px}
+.stat-card .stat-label{font-size:13px;color:var(--color-text-secondary)}
+.stat-card .stat-value{font-size:28px;font-weight:700;color:var(--color-primary);margin-top:4px}
+
+.card{background:#fff;border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:16px;margin-bottom:16px}
+.card-title{font-size:15px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+
+.search-bar{display:flex;gap:8px;margin-bottom:12px}
+.search-bar input{flex:1;padding:8px 12px;border:1px solid var(--color-border);border-radius:var(--input-radius);font-size:13px;outline:none}
+.search-bar input:focus{border-color:var(--color-primary)}
+
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{background:#f7f8fa;padding:10px 12px;text-align:left;font-weight:600;font-size:12px;color:var(--color-text-secondary);border-bottom:2px solid #e8eaed}
+.data-table td{padding:10px 12px;border-bottom:1px solid #f0f0f0}
+.data-table tr:hover td{background:rgba(92,103,242,.03)}
+
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border:none;border-radius:var(--btn-radius);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s;font-family:var(--font-family)}
+.btn-primary{background:var(--color-primary);color:#fff}
+.btn-primary:hover{background:var(--color-primary-hover)}
+.btn-ghost{background:transparent;border:1px solid var(--color-border);color:var(--color-text)}
+.btn-ghost:hover{border-color:var(--color-primary);color:var(--color-primary)}
+.btn-danger{background:var(--color-danger);color:#fff}
+.btn-success{background:var(--color-success);color:#fff}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500;color:#fff}
+.badge-success{background:var(--color-success)}
+.badge-warning{background:var(--color-warning)}
+.badge-info{background:var(--color-primary)}
+.badge-danger{background:var(--color-danger)}
+
+.pagination{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px}
+.page-btn{width:28px;height:28px;border:1px solid var(--color-border);border-radius:4px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px}
+.page-btn:hover{border-color:var(--color-primary);color:var(--color-primary)}
+.page-btn.active{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}
+.page-btn:disabled{opacity:.4;cursor:not-allowed}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:flex;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:var(--card-radius);width:480px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.15)}
+.modal-header{padding:14px 20px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:15px}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#999;padding:0 4px}
+.modal-close:hover{color:var(--color-danger)}
+.modal-body{padding:16px 20px;overflow-y:auto;flex:1}
+.modal-footer{padding:12px 20px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:8px}
+
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:13px;color:var(--color-text-secondary);margin-bottom:4px;font-weight:500}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 12px;border:1px solid var(--color-border);border-radius:var(--input-radius);font-size:13px;outline:none}
+.form-group input:focus{border-color:var(--color-primary)}
+
+.toast{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast-item{padding:10px 20px;border-radius:var(--btn-radius);color:#fff;font-size:13px;animation:slideIn .25s;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.toast-success{background:var(--color-success)}
+.toast-error{background:var(--color-danger)}
+.toast-info{background:var(--color-primary)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+.empty-state{text-align:center;padding:30px;color:var(--color-text-secondary)}
+
+.tx-list .tx-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
+.tx-amount{font-weight:600}
+.tx-amount.positive{color:var(--color-success)}
+.tx-amount.negative{color:var(--color-danger)}
+
+.login-page{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#2c3e50,#34495e)}
+.login-box{background:#fff;border-radius:12px;padding:40px 36px;width:380px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.login-box h2{text-align:center;margin-bottom:24px;font-size:20px}
+.login-box .btn{width:100%;padding:10px;font-size:14px;margin-top:8px}
+.form-error{color:var(--color-danger);font-size:12px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div id="admin-app">
+
+<!-- Login -->
+<div v-if="!isLoggedIn" class="login-page">
+  <div class="login-box">
+    <h2>管理员登录</h2>
+    <div class="form-group"><label>用户名</label><input type="text" v-model="loginForm.username" @keyup.enter="doLogin"></div>
+    <div class="form-group"><label>密码</label><input type="password" v-model="loginForm.password" @keyup.enter="doLogin"></div>
+    <div v-if="loginError" class="form-error">{{loginError}}</div>
+    <button class="btn btn-primary" @click="doLogin">登录</button>
+  </div>
+</div>
+
+<!-- Admin Panel -->
+<template v-else>
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <h2>管理后台</h2>
+    <nav class="admin-nav">
+      <div class="admin-nav-item" :class="{active:activeTab==='dashboard'}" @click="activeTab='dashboard'">仪表盘</div>
+      <div class="admin-nav-item" :class="{active:activeTab==='users'}" @click="activeTab='users';loadUsers()">用户管理</div>
+      <div class="admin-nav-item" :class="{active:activeTab==='transactions'}" @click="activeTab='transactions';loadAllTx()">交易记录</div>
+      <div class="admin-nav-item" :class="{active:activeTab==='orders'}" @click="activeTab='orders';loadOrders()">充值订单</div>
+    </nav>
+    <div class="back-link" @click="goHome">&#8592; 返回首页</div>
+  </aside>
+
+  <main class="admin-main">
+
+    <!-- Dashboard -->
+    <template v-if="activeTab==='dashboard'">
+      <div class="stat-cards">
+        <div class="stat-card"><div class="stat-label">总用户数</div><div class="stat-value">{{dashStats.total_users||0}}</div></div>
+        <div class="stat-card"><div class="stat-label">今日活跃</div><div class="stat-value">{{dashStats.active_today||0}}</div></div>
+        <div class="stat-card"><div class="stat-label">点数流通</div><div class="stat-value">{{dashStats.total_points_in_circulation||0}}</div></div>
+        <div class="stat-card"><div class="stat-label">总查询数</div><div class="stat-value">{{dashStats.total_queries||0}}</div></div>
+        <div class="stat-card"><div class="stat-label">充值笔数</div><div class="stat-value">{{dashStats.total_recharges||0}}</div></div>
+        <div class="stat-card"><div class="stat-label">充值金额</div><div class="stat-value">&#165;{{dashStats.total_recharge_yuan||0}}</div></div>
+      </div>
+    </template>
+
+    <!-- Users -->
+    <template v-if="activeTab==='users'">
+      <div class="card">
+        <div class="card-title">用户管理</div>
+        <div class="search-bar">
+          <input type="text" v-model="userSearch" placeholder="搜索用户名..." @keyup.enter="loadUsers">
+          <button class="btn btn-primary" @click="loadUsers">搜索</button>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>点数</th><th>活跃会话</th><th>最后活跃</th><th>注册时间</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr v-if="!users.length"><td colspan="8" class="empty-state">暂无数据</td></tr>
+            <tr v-for="u in users" :key="u.id">
+              <td>{{u.id}}</td>
+              <td><strong>{{u.username}}</strong></td>
+              <td><span class="badge" :class="u.role==='admin'?'badge-danger':'badge-info'">{{u.role==='admin'?'管理员':'用户'}}</span></td>
+              <td><strong>{{u.points}}</strong></td>
+              <td>{{u.active_sessions}}</td>
+              <td>{{fmtTime(u.last_active)}}</td>
+              <td>{{fmtTime(u.created_at)}}</td>
+              <td>
+                <button class="btn btn-ghost btn-sm" @click="openAdjustPoints(u)">调整点数</button>
+                <button class="btn btn-ghost btn-sm" @click="openResetPw(u)">重置密码</button>
+                <button class="btn btn-ghost btn-sm" @click="openUserTx(u)">交易记录</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="pagination" v-if="userPages>1">
+          <button class="page-btn" :disabled="userPage<=1" @click="userPage--;loadUsers()">&lt;</button>
+          <span style="font-size:12px">{{userPage}} / {{userPages}}</span>
+          <button class="page-btn" :disabled="userPage>=userPages" @click="userPage++;loadUsers()">&gt;</button>
+        </div>
+      </div>
+    </template>
+
+    <!-- All Transactions -->
+    <template v-if="activeTab==='transactions'">
+      <div class="card">
+        <div class="card-title">交易记录</div>
+        <table class="data-table">
+          <thead><tr><th>ID</th><th>用户</th><th>类型</th><th>金额</th><th>余额</th><th>说明</th><th>时间</th></tr></thead>
+          <tbody>
+            <tr v-if="!allTx.length"><td colspan="7" class="empty-state">暂无数据</td></tr>
+            <tr v-for="tx in allTx" :key="tx.id">
+              <td>{{tx.id}}</td>
+              <td>{{tx.username}}</td>
+              <td>{{txTypeLabel(tx.type)}}</td>
+              <td><span class="tx-amount" :class="{positive:tx.amount>0,negative:tx.amount<0}">{{tx.amount>0?'+':''}}{{tx.amount}}</span></td>
+              <td>{{tx.balance_after}}</td>
+              <td>{{tx.description}}</td>
+              <td>{{fmtTime(tx.created_at)}}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="pagination" v-if="allTxPages>1">
+          <button class="page-btn" :disabled="allTxPage<=1" @click="allTxPage--;loadAllTx()">&lt;</button>
+          <span style="font-size:12px">{{allTxPage}} / {{allTxPages}}</span>
+          <button class="page-btn" :disabled="allTxPage>=allTxPages" @click="allTxPage++;loadAllTx()">&gt;</button>
+        </div>
+      </div>
+    </template>
+
+    <!-- Orders -->
+    <template v-if="activeTab==='orders'">
+      <div class="card">
+        <div class="card-title">
+          充值订单
+          <div style="display:flex;gap:6px">
+            <select v-model="orderFilter" @change="loadOrders" style="padding:4px 8px;border:1px solid var(--color-border);border-radius:4px;font-size:12px">
+              <option value="">全部状态</option>
+              <option value="pending">待支付</option>
+              <option value="paid">已支付</option>
+              <option value="cancelled">已取消</option>
+            </select>
+          </div>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>订单号</th><th>用户</th><th>金额</th><th>点数</th><th>支付方式</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr v-if="!orders.length"><td colspan="8" class="empty-state">暂无数据</td></tr>
+            <tr v-for="o in orders" :key="o.id">
+              <td style="font-size:11px">{{o.order_no}}</td>
+              <td>{{o.username}}</td>
+              <td>&#165;{{o.amount_yuan}}</td>
+              <td>{{o.points}}</td>
+              <td>{{o.payment_method==='wechat'?'微信':'支付宝'}}</td>
+              <td>
+                <span class="badge" :class="{'badge-warning':o.status==='pending','badge-success':o.status==='paid','badge-danger':o.status==='cancelled'}">
+                  {{o.status==='pending'?'待支付':o.status==='paid'?'已支付':'已取消'}}
+                </span>
+              </td>
+              <td>{{fmtTime(o.created_at)}}</td>
+              <td>
+                <button v-if="o.status==='pending'" class="btn btn-success btn-sm" @click="confirmOrder(o.order_no)">确认到账</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="pagination" v-if="orderPages>1">
+          <button class="page-btn" :disabled="orderPage<=1" @click="orderPage--;loadOrders()">&lt;</button>
+          <span style="font-size:12px">{{orderPage}} / {{orderPages}}</span>
+          <button class="page-btn" :disabled="orderPage>=orderPages" @click="orderPage++;loadOrders()">&gt;</button>
+        </div>
+      </div>
+    </template>
+
+  </main>
+</div>
+
+<!-- Adjust Points Modal -->
+<div class="modal-overlay" v-if="showAdjust" @mousedown.self="showAdjust=false">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">调整点数 - {{adjustUser.username}}<button class="modal-close" @click="showAdjust=false">&times;</button></div>
+    <div class="modal-body">
+      <div style="margin-bottom:12px;font-size:13px">当前余额: <strong style="color:var(--color-primary)">{{adjustUser.points}} 点</strong></div>
+      <div class="form-group">
+        <label>调整数量（正数加点，负数扣点）</label>
+        <input type="number" v-model.number="adjustAmount">
+      </div>
+      <div class="form-group">
+        <label>原因</label>
+        <input type="text" v-model="adjustReason" placeholder="调整原因">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" @click="showAdjust=false">取消</button>
+      <button class="btn btn-primary" @click="doAdjust">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal-overlay" v-if="showResetPw" @mousedown.self="showResetPw=false">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">重置密码 - {{resetPwUser.username}}<button class="modal-close" @click="showResetPw=false">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>新密码（至少6个字符）</label>
+        <input type="text" v-model="resetPwValue" placeholder="输入新密码">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" @click="showResetPw=false">取消</button>
+      <button class="btn btn-danger" @click="doResetPw">确认重置</button>
+    </div>
+  </div>
+</div>
+
+<!-- User Transaction Modal -->
+<div class="modal-overlay" v-if="showUserTx" @mousedown.self="showUserTx=false">
+  <div class="modal" style="width:560px">
+    <div class="modal-header">交易记录 - {{userTxName}}<button class="modal-close" @click="showUserTx=false">&times;</button></div>
+    <div class="modal-body">
+      <div v-if="!userTxList.length" class="empty-state">暂无记录</div>
+      <div class="tx-list" v-else>
+        <div v-for="tx in userTxList" :key="tx.id" class="tx-item">
+          <div>
+            <div>{{tx.description||txTypeLabel(tx.type)}}</div>
+            <div style="font-size:11px;color:#999">{{fmtTime(tx.created_at)}}</div>
+          </div>
+          <div class="tx-amount" :class="{positive:tx.amount>0,negative:tx.amount<0}">{{tx.amount>0?'+':''}}{{tx.amount}}</div>
+        </div>
+      </div>
+      <div v-if="userTxPages>1" class="pagination">
+        <button class="page-btn" :disabled="userTxPage<=1" @click="userTxPage--;loadUserTx()">&lt;</button>
+        <span style="font-size:12px">{{userTxPage}} / {{userTxPages}}</span>
+        <button class="page-btn" :disabled="userTxPage>=userTxPages" @click="userTxPage++;loadUserTx()">&gt;</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</template>
+
+<div class="toast"><div v-for="t in toasts" :key="t.id" class="toast-item" :class="'toast-'+t.type">{{t.msg}}</div></div>
+</div>
+
+<script>
+if(typeof Vue==='undefined'){
+  document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:24px;font-family:sans-serif">'
+    +'<h2>页面资源加载失败</h2><p>Vue 脚本未能加载，请检查网络后刷新。</p></div>';
+  throw new Error('Vue not loaded');
+}
+const{createApp,ref,reactive,onMounted}=Vue;
+
+function apiFetch(url,opts={}){
+  const token=localStorage.getItem('auth_token');
+  const headers={...(opts.headers||{})};
+  if(token)headers['Authorization']='Bearer '+token;
+  if(opts.body&&typeof opts.body==='string')headers['Content-Type']='application/json';
+  return fetch(url,{...opts,headers});
+}
+
+createApp({
+  setup(){
+    const toasts=ref([]);let toastId=0;
+    const toast=(msg,type='info')=>{const id=++toastId;toasts.value.push({id,msg,type});setTimeout(()=>{toasts.value=toasts.value.filter(t=>t.id!==id)},3000)};
+    const fmtTime=t=>{if(!t)return'-';return t.replace('T',' ').substring(0,19)};
+    const txTypeLabel=t=>({query:'查询扣费',recharge:'充值',register_gift:'注册赠送',admin_adjust:'管理员调整'}[t]||t);
+
+    const isLoggedIn=ref(!!localStorage.getItem('auth_token'));
+    const loginForm=reactive({username:'',password:''});
+    const loginError=ref('');
+
+    const doLogin=async()=>{
+      loginError.value='';
+      try{
+        const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:loginForm.username,password:loginForm.password})});
+        const j=await r.json();
+        if(!r.ok){loginError.value=j.error||'登录失败';return;}
+        if(j.user.role!=='admin'){loginError.value='需要管理员权限';return;}
+        localStorage.setItem('auth_token',j.token);isLoggedIn.value=true;loadDashboard();
+      }catch(e){loginError.value='网络错误';}
+    };
+
+    const activeTab=ref('dashboard');
+    const dashStats=ref({});
+    const goHome=()=>{window.location.href='/';};
+
+    const loadDashboard=async()=>{
+      try{
+        const r=await apiFetch('/api/admin/stats');
+        if(r.status===401||r.status===403){isLoggedIn.value=false;localStorage.removeItem('auth_token');return;}
+        dashStats.value=await r.json();
+      }catch(e){}
+    };
+
+    // Users
+    const users=ref([]);const userPage=ref(1);const userPages=ref(1);const userSearch=ref('');
+    const loadUsers=async()=>{
+      try{
+        const r=await apiFetch(`/api/admin/users?page=${userPage.value}&page_size=20&search=${encodeURIComponent(userSearch.value)}`);
+        const j=await r.json();users.value=j.data||[];userPages.value=j.total_pages||1;
+      }catch(e){}
+    };
+
+    // Adjust points
+    const showAdjust=ref(false);const adjustUser=ref({});const adjustAmount=ref(0);const adjustReason=ref('');
+    const openAdjustPoints=u=>{adjustUser.value=u;adjustAmount.value=0;adjustReason.value='';showAdjust.value=true;};
+    const doAdjust=async()=>{
+      if(!adjustAmount.value){toast('请输入调整数量','error');return;}
+      try{
+        const r=await apiFetch(`/api/admin/users/${adjustUser.value.id}/adjust_points`,{method:'POST',body:JSON.stringify({amount:adjustAmount.value,reason:adjustReason.value||'管理员调整'})});
+        const j=await r.json();
+        if(!r.ok){toast(j.error||'调整失败','error');return;}
+        toast(`调整成功，新余额: ${j.balance} 点`,'success');showAdjust.value=false;loadUsers();
+      }catch(e){toast('网络错误','error');}
+    };
+
+    // Reset password
+    const showResetPw=ref(false);const resetPwUser=ref({});const resetPwValue=ref('');
+    const openResetPw=u=>{resetPwUser.value=u;resetPwValue.value='';showResetPw.value=true;};
+    const doResetPw=async()=>{
+      if(resetPwValue.value.length<6){toast('密码至少6个字符','error');return;}
+      try{
+        const r=await apiFetch(`/api/admin/users/${resetPwUser.value.id}/reset_password`,{method:'POST',body:JSON.stringify({new_password:resetPwValue.value})});
+        const j=await r.json();
+        if(!r.ok){toast(j.error||'重置失败','error');return;}
+        toast('密码已重置','success');showResetPw.value=false;
+      }catch(e){toast('网络错误','error');}
+    };
+
+    // User tx
+    const showUserTx=ref(false);const userTxName=ref('');const userTxId=ref(0);
+    const userTxList=ref([]);const userTxPage=ref(1);const userTxPages=ref(1);
+    const openUserTx=u=>{userTxName.value=u.username;userTxId.value=u.id;userTxPage.value=1;showUserTx.value=true;loadUserTx();};
+    const loadUserTx=async()=>{
+      try{
+        const r=await apiFetch(`/api/admin/transactions?page=${userTxPage.value}&page_size=20&user_id=${userTxId.value}`);
+        const j=await r.json();userTxList.value=j.data||[];userTxPages.value=j.total_pages||1;
+      }catch(e){}
+    };
+
+    // All transactions
+    const allTx=ref([]);const allTxPage=ref(1);const allTxPages=ref(1);
+    const loadAllTx=async()=>{
+      try{
+        const r=await apiFetch(`/api/admin/transactions?page=${allTxPage.value}&page_size=20`);
+        const j=await r.json();allTx.value=j.data||[];allTxPages.value=j.total_pages||1;
+      }catch(e){}
+    };
+
+    // Orders
+    const orders=ref([]);const orderPage=ref(1);const orderPages=ref(1);const orderFilter=ref('');
+    const loadOrders=async()=>{
+      try{
+        let url=`/api/admin/recharge_orders?page=${orderPage.value}&page_size=20`;
+        if(orderFilter.value)url+=`&status=${orderFilter.value}`;
+        const r=await apiFetch(url);const j=await r.json();orders.value=j.data||[];orderPages.value=j.total_pages||1;
+      }catch(e){}
+    };
+    const confirmOrder=async orderNo=>{
+      if(!confirm('确认该订单已到账？将为用户增加对应点数。'))return;
+      try{
+        const r=await apiFetch(`/api/admin/recharge_orders/${orderNo}/confirm`,{method:'POST'});
+        const j=await r.json();
+        if(!r.ok){toast(j.error||'确认失败','error');return;}
+        toast('订单已确认，点数已到账','success');loadOrders();
+      }catch(e){toast('网络错误','error');}
+    };
+
+    onMounted(()=>{if(isLoggedIn.value)loadDashboard();});
+
+    return{
+      toasts,toast,fmtTime,txTypeLabel,
+      isLoggedIn,loginForm,loginError,doLogin,
+      activeTab,dashStats,goHome,
+      users,userPage,userPages,userSearch,loadUsers,
+      showAdjust,adjustUser,adjustAmount,adjustReason,openAdjustPoints,doAdjust,
+      showResetPw,resetPwUser,resetPwValue,openResetPw,doResetPw,
+      showUserTx,userTxName,userTxList,userTxPage,userTxPages,openUserTx,loadUserTx,
+      allTx,allTxPage,allTxPages,loadAllTx,
+      orders,orderPage,orderPages,orderFilter,loadOrders,confirmOrder,
+    };
+  }
+}).mount('#admin-app');
+</script>
+</body>
+</html>

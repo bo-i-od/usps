@@ -8,7 +8,8 @@ from selectolax.lexbor import LexborHTMLParser
 
 
 BATCH_SIZE = 35
-MAX_RETRY = 1
+MAX_RETRY = 3
+BATCH_TIMEOUT = 30
 BULK_TRACKING_URL = (
     "https://tools.usps.com/go/TrackConfirmAction"
     "?tRef=fullpage&tLc={count}&text28777=&tLabels={labels}&tABt=false"
@@ -131,7 +132,7 @@ def _parse_bulk_html(html: str, expected_numbers: List[str]) -> List[dict]:
     return results
 
 
-def track_batch(driver, batch: List[str]) -> List[dict]:
+def track_batch(driver, batch: List[str], timeout: int = BATCH_TIMEOUT) -> List[dict]:
     """一次请求查询最多 35 个单号"""
     labels = "%2C".join(batch) + "%2C"
     url = BULK_TRACKING_URL.format(labels=labels, count=len(batch))
@@ -144,7 +145,7 @@ def track_batch(driver, batch: List[str]) -> List[dict]:
         from selenium.webdriver.support.ui import WebDriverWait
 
         try:
-            WebDriverWait(driver, 20).until(
+            WebDriverWait(driver, timeout).until(
                 EC.presence_of_element_located((By.CLASS_NAME, "tracking-number"))
             )
         except Exception:
@@ -223,11 +224,14 @@ def track_bulk(tracking_numbers: List[str], max_retry: int = MAX_RETRY) -> List[
             ]
             next_retry_queue: List[str] = []
 
+            retry_timeout = int(BATCH_TIMEOUT * (1.5 ** attempt))
+            print(f"  Retry timeout: {retry_timeout}s")
+
             for bi, batch in enumerate(retry_batches):
                 batch_start = time.time()
                 print(f"\n  === Retry Batch {bi + 1}/{len(retry_batches)} ({len(batch)} numbers) ===")
 
-                batch_results = track_batch(driver, batch)
+                batch_results = track_batch(driver, batch, timeout=retry_timeout)
 
                 for r in batch_results:
                     tn = r["tracking_number"]

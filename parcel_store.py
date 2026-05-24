@@ -147,6 +147,7 @@ def _make_default_parcel(tracking_number: str) -> dict:
         "shipped_at": None,
         "added_at": now,
         "last_fetched_at": None,
+        "last_success_at": None,
         "delivered_at": None,
         "aging": {"transit": None, "dwell": None, "delivered": None},
         "events": [],
@@ -390,3 +391,78 @@ def get_parcels_by_tns(tns: List[str]) -> List[dict]:
     parcels = _load()
     tn_set = set(tns)
     return [p for p in parcels if p["tracking_number"] in tn_set]
+
+
+# ─── User-scoped variant for SQLite backend ───
+
+def apply_track_results_for_user(user_id: int, results: List[dict]):
+    """Merge track results into the SQLite-backed store for a specific user."""
+    import database as db
+
+    existing = db.get_all_parcels(user_id)
+    by_tn = {p["tracking_number"]: p for p in existing}
+
+    for r in results:
+        tn = r.get("tracking_number")
+        if not tn:
+            continue
+        if tn not in by_tn:
+            by_tn[tn] = _make_default_parcel(tn)
+
+        p = by_tn[tn]
+        p["last_fetched_at"] = _now_iso()
+        p["raw"] = r
+
+        if r.get("error"):
+            if not p.get("events"):
+                p["main_status"] = "查询不到"
+                p["sub_status"] = "查询不到"
+            db.upsert_parcel(user_id, p)
+            continue
+
+        data = r.get("data") or {}
+        usps_status = data.get("status", "")
+        main, sub = _map_status(usps_status)
+        p["main_status"] = main
+        p["sub_status"] = sub
+
+        raw_events = data.get("events") or []
+        parsed_events = []
+        for ev in raw_events:
+            t = _parse_event_time(ev.get("date", ""))
+            parsed_events.append({
+                "time": t,
+                "description": ev.get("description", ""),
+                "location": ev.get("location", ""),
+            })
+
+        if parsed_events:
+            p["events"] = parsed_events
+            p["latest_event"] = parsed_events[0].get("description")
+            if parsed_events[0].get("time") and not p.get("shipped_at"):
+                p["shipped_at"] = parsed_events[-1].get("time")
+
+            for ev in parsed_events:
+                desc = ev.get("description", "").lower()
+                if "accepted" in desc or "departed" in desc or "label created" in desc:
+                    p["online_event"] = ev.get("description")
+                    break
+
+            if main == "签收成功":
+                p["delivered_at"] = parsed_events[0].get("time")
+                p["delivery_event"] = parsed_events[0].get("description")
+
+        if main == "运输途中" and p.get("shipped_at"):
+            try:
+                ship_dt = datetime.fromisoformat(p["shipped_at"])
+                if (datetime.utcnow() - ship_dt).days > 30:
+                    p["main_status"] = "运输过久"
+                    p["sub_status"] = "运输过久"
+            except (ValueError, TypeError):
+                pass
+
+        if main != "查询不到":
+            p["last_success_at"] = p["last_fetched_at"]
+
+        p["aging"] = _calc_aging(p)
+        db.upsert_parcel(user_id, p)

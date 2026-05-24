@@ -4,22 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>单号查询</title>
-<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
 <style>
 :root{--bg-page:#f0f2f5;--bg-card:#fff;--color-primary:#5c67f2;--color-primary-hover:#4e58d9;--color-danger:#dc3545;--color-warning:#f39c12;--color-success:#28a745;--color-text:#2c3e50;--color-text-secondary:#7f8c8d;--color-border:#b0b8c2;--sidebar-gradient:linear-gradient(180deg,#3a3f5c,#4e58d9,#5c67f2);--card-radius:8px;--card-shadow:0 2px 8px rgba(0,0,0,.08);--input-radius:6px;--input-focus-shadow:0 0 0 3px rgba(92,103,242,.12);--btn-radius:6px;--font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;--font-mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:var(--font-family);background:var(--bg-page);color:var(--color-text);line-height:1.6;font-size:14px}
-/* Layout */
 .app-layout{display:flex;min-height:100vh}
 .sidebar{width:200px;background:var(--sidebar-gradient);color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow-y:auto;transition:width .2s}
 .sidebar.collapsed{width:0;overflow:hidden}
 .sidebar-header{padding:16px 14px 10px;font-size:18px;font-weight:700;letter-spacing:1px;border-bottom:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:6px}
-.sidebar-header img{height:24px}
 .menu-section{padding:4px 0}
 .menu-item{display:flex;align-items:center;justify-content:space-between;padding:8px 18px;cursor:pointer;font-size:14px;border-radius:0;transition:background .15s;user-select:none}
 .menu-item:hover{background:rgba(255,255,255,.1)}
 .menu-item.active{background:rgba(255,255,255,.18);border-left:3px solid #fff;padding-left:15px;font-weight:600}
-.menu-item.disabled{opacity:.45;cursor:default}
 .menu-item .count{font-size:11px;opacity:.7}
 .menu-group-title{padding:8px 18px;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:background .15s}
 .menu-group-title:hover{background:rgba(255,255,255,.08)}
@@ -28,33 +25,21 @@ body{font-family:var(--font-family);background:var(--bg-page);color:var(--color-
 .submenu{overflow:hidden;transition:max-height .25s ease}
 .submenu .menu-item{padding-left:32px;font-size:12px}
 .submenu .menu-item.active{padding-left:29px}
-
-/* Main */
 .main-content{margin-left:200px;flex:1;padding:12px 16px 60px;transition:margin-left .2s}
-.sidebar.collapsed+.main-content{margin-left:0}
+.sidebar.collapsed~.main-content{margin-left:0}
 .breadcrumb{font-size:13px;color:var(--color-text-secondary);margin-bottom:8px}
 .breadcrumb span{color:var(--color-text)}
-
-/* Card */
 .card{background:var(--bg-card);border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:14px 16px;margin-bottom:12px}
 .card-accent{border-left:4px solid var(--color-primary)}
-
-/* Filters */
 .filter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px 12px;align-items:end}
 .filter-group{display:flex;flex-direction:column;gap:2px}
 .filter-group label{font-size:13px;color:var(--color-text-secondary);font-weight:500}
 .filter-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
-.merge-input{display:flex}
-.merge-input select{border-radius:var(--input-radius) 0 0 var(--input-radius);border:1px solid var(--color-border);border-right:none;padding:6px 8px;font-size:12px;background:#fff;outline:none}
-.merge-input input,.merge-input .date-trigger,.merge-input textarea{border-radius:0 var(--input-radius) var(--input-radius) 0;border:1px solid var(--color-border);padding:6px 10px;font-size:12px;outline:none;flex:1;min-width:120px}
 .tn-textarea{resize:none;height:72px;overflow-y:auto;font-family:var(--font-mono);line-height:1.5;width:40%;border:1px solid var(--color-border);border-radius:var(--input-radius);padding:6px 10px;font-size:12px;outline:none}
 .tn-textarea:focus{border-color:var(--color-primary);box-shadow:var(--input-focus-shadow)}
-.merge-input select:focus,.merge-input input:focus{border-color:var(--color-primary);box-shadow:var(--input-focus-shadow)}
 input,select,textarea{font-family:var(--font-family);font-size:13px}
-input[type="text"],input[type="date"],select:not(.page-select),textarea{border:1px solid var(--color-border);border-radius:var(--input-radius);padding:6px 10px;outline:none;width:100%;background:#fff}
+input[type="text"],input[type="date"],input[type="password"],select:not(.page-select),textarea{border:1px solid var(--color-border);border-radius:var(--input-radius);padding:6px 10px;outline:none;width:100%;background:#fff}
 input:focus,select:focus,textarea:focus{border-color:var(--color-primary);box-shadow:var(--input-focus-shadow)}
-
-/* Multi-select */
 .multi-select{position:relative}
 .ms-trigger{border:1px solid var(--color-border);border-radius:var(--input-radius);padding:5px 28px 5px 8px;font-size:12px;cursor:pointer;min-height:32px;display:flex;flex-wrap:wrap;gap:3px;align-items:center;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237f8c8d'/%3E%3C/svg%3E") no-repeat right 8px center}
 .ms-trigger:hover{border-color:var(--color-primary)}
@@ -70,19 +55,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--color-primary);box-sh
 .ms-option:hover{background:rgba(92,103,242,.06)}
 .ms-option.selected{color:var(--color-primary);font-weight:500}
 .ms-option input[type="checkbox"]{accent-color:var(--color-primary)}
-
-/* Buttons */
 .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 16px;border:none;border-radius:var(--btn-radius);cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;font-family:var(--font-family)}
 .btn-primary{background:var(--color-primary);color:#fff}
 .btn-primary:hover{background:var(--color-primary-hover);transform:translateY(-1px);box-shadow:0 3px 10px rgba(92,103,242,.25)}
 .btn-ghost{background:transparent;border:1px solid var(--color-border);color:var(--color-text)}
 .btn-ghost:hover{border-color:var(--color-primary);color:var(--color-primary)}
 .btn-danger{background:var(--color-danger);color:#fff}
+.btn-success{background:var(--color-success);color:#fff}
 .btn-sm{padding:4px 10px;font-size:11px}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
 .text-count{color:var(--color-primary);font-weight:700;font-size:14px}
-
-/* Table */
 .table-wrap{overflow-x:auto;border:1px solid #e8eaed;border-radius:var(--card-radius);background:#fff;position:relative}
 table{width:100%;border-collapse:collapse;font-size:13px;min-width:1100px;table-layout:fixed}
 thead{position:sticky;top:0;z-index:10}
@@ -100,9 +82,6 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
 .time-cell .lbl{color:#999;font-size:12px;min-width:28px;flex-shrink:0}
 .tn-cell{font-family:var(--font-mono);font-size:13px;color:var(--color-primary);cursor:pointer;word-break:break-all}
 .tn-cell:hover{text-decoration:underline}
-.tn-links{margin-top:3px;font-size:11px}
-.tn-links a{color:var(--color-primary);text-decoration:none;margin-right:8px}
-.tn-links a:hover{text-decoration:underline}
 .status-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:500;color:#fff}
 .dest-cell{font-size:12px}
 .track-cell{font-size:12px;overflow:hidden;word-break:break-word}
@@ -131,8 +110,6 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
 .remark-cell{font-size:12px}
 .remark-cell .remark-link{color:var(--color-primary);cursor:pointer;font-size:11px;text-decoration:none}
 .remark-cell .remark-link:hover{text-decoration:underline}
-
-/* Bottom bar */
 .bottom-bar{position:fixed;bottom:0;left:200px;right:0;background:#fff;border-top:1px solid #e8eaed;padding:6px 16px;display:flex;justify-content:space-between;align-items:center;z-index:90;font-size:12px;transition:left .2s}
 .sidebar.collapsed~.main-content~.bottom-bar,.sidebar.collapsed~.bottom-bar{left:0}
 .bottom-actions{display:flex;gap:6px;align-items:center}
@@ -144,8 +121,6 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
 .page-btn:disabled{opacity:.4;cursor:not-allowed}
 .page-jump{display:flex;align-items:center;gap:4px;font-size:12px}
 .page-jump input{width:40px;text-align:center;padding:3px;border:1px solid var(--color-border);border-radius:4px}
-
-/* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:flex;align-items:center;justify-content:center}
 .modal{background:#fff;border-radius:var(--card-radius);width:680px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.15)}
 .modal-header{padding:14px 20px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:15px}
@@ -153,40 +128,26 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
 .modal-close:hover{color:var(--color-danger)}
 .modal-body{padding:16px 20px;overflow-y:auto;flex:1}
 .modal-footer{padding:12px 20px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:8px}
-
-/* Import */
-.import-carrier{margin-bottom:12px}
-.import-carrier label{font-weight:500;font-size:12px}
-.import-carrier .val{background:#f0f2f5;padding:6px 12px;border-radius:var(--input-radius);margin-top:4px;font-size:13px;display:inline-block}
 .import-textarea{width:100%;height:200px;resize:vertical;font-family:var(--font-mono);font-size:12px;padding:10px;border:1px solid var(--color-border);border-radius:var(--input-radius)}
 .import-textarea:focus{border-color:var(--color-primary);box-shadow:var(--input-focus-shadow);outline:none}
 .import-counter{text-align:right;font-size:11px;color:var(--color-text-secondary);margin-top:4px}
-
-/* Export columns */
 .export-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 16px;margin-top:8px}
 .export-col-item{display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0}
 .export-select-all{margin-bottom:8px;font-weight:500;font-size:13px;display:flex;align-items:center;gap:6px}
-
-/* Toast */
 .toast{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
 .toast-item{padding:10px 20px;border-radius:var(--btn-radius);color:#fff;font-size:13px;animation:slideIn .25s;box-shadow:0 4px 14px rgba(0,0,0,.15)}
 .toast-success{background:var(--color-success)}
 .toast-error{background:var(--color-danger)}
 .toast-info{background:var(--color-primary)}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-
-/* Misc */
 .toggle-sidebar{position:fixed;top:50%;left:200px;z-index:101;background:#fff;color:var(--color-text-secondary);border:1px solid #e0e3e8;border-left:none;border-radius:0 6px 6px 0;padding:0;width:16px;height:48px;cursor:pointer;font-size:0;transition:left .2s;display:flex;align-items:center;justify-content:center;box-shadow:2px 0 6px rgba(0,0,0,.06);transform:translateY(-50%)}
 .toggle-sidebar:hover{background:#f5f6fa;color:var(--color-primary)}
 .toggle-sidebar svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none}
 .sidebar.collapsed~.toggle-sidebar{left:0}
 .empty-state{text-align:center;padding:40px 20px;color:var(--color-text-secondary)}
-.loading-spin{display:inline-block;animation:spin .8s linear infinite}
 .dot-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(92,103,242,.25);border-top-color:var(--color-primary);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
 .dot-spinner-sm{width:10px;height:10px;border-width:1.5px}
 @keyframes spin{to{transform:rotate(360deg)}}
-
-/* Date range */
 .date-range-wrap{position:relative}
 .date-trigger{cursor:pointer;background:#fff}
 .date-panel{position:absolute;top:100%;left:0;z-index:300;background:#fff;border:1px solid var(--color-border);border-radius:var(--card-radius);box-shadow:0 8px 30px rgba(0,0,0,.15);display:flex;overflow:hidden}
@@ -208,18 +169,135 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
 .cal-grid .cal-day.disabled{color:#ccc;cursor:default}
 .cal-grid .cal-day.other-month{color:#ccc}
 
-/* Responsive */
-@media(max-width:1024px){.sidebar{width:0;overflow:hidden}.main-content{margin-left:0}.bottom-bar{left:0}.toggle-sidebar{left:0}}
+/* Track result banner */
+.track-result-bar{background:#fff;border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:14px;border-left:4px solid var(--color-success);animation:trackSlideDown .3s}
+.track-result-bar.has-errors{border-left-color:var(--color-warning)}
+.track-result-stats{display:flex;align-items:center;gap:8px;font-size:13px;flex-wrap:wrap}
+.track-result-progress{width:140px;height:8px;background:#e8eaed;border-radius:4px;overflow:hidden;flex-shrink:0}
+.track-result-progress-fill{height:100%;border-radius:4px;transition:width .5s}
+.track-result-pct{font-size:14px;font-weight:700;flex-shrink:0}
+.track-result-close{margin-left:auto;background:none;border:none;cursor:pointer;color:#999;font-size:18px;padding:0 4px;flex-shrink:0}
+.track-result-close:hover{color:var(--color-danger)}
+@keyframes trackSlideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+
+/* Login page */
+.login-page{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#3a3f5c 0%,#5c67f2 100%)}
+.login-box{background:#fff;border-radius:12px;padding:40px 36px;width:380px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.login-box h2{text-align:center;margin-bottom:24px;color:var(--color-text);font-size:22px}
+.login-box .form-group{margin-bottom:16px}
+.login-box .form-group label{display:block;font-size:13px;color:var(--color-text-secondary);margin-bottom:4px;font-weight:500}
+.login-box .form-group input{width:100%;padding:10px 12px;border:1px solid var(--color-border);border-radius:var(--input-radius);font-size:14px;outline:none}
+.login-box .form-group input:focus{border-color:var(--color-primary);box-shadow:var(--input-focus-shadow)}
+.login-box .form-error{color:var(--color-danger);font-size:12px;margin-top:4px}
+.login-box .btn{width:100%;padding:10px;font-size:15px;margin-top:8px}
+.login-box .toggle-link{text-align:center;margin-top:16px;font-size:13px;color:var(--color-text-secondary)}
+.login-box .toggle-link a{color:var(--color-primary);cursor:pointer;text-decoration:none}
+.login-box .toggle-link a:hover{text-decoration:underline}
+
+/* User bar */
+.user-bar{position:fixed;top:0;right:0;left:200px;height:42px;background:#fff;border-bottom:1px solid #e8eaed;display:flex;align-items:center;justify-content:flex-end;padding:0 16px;z-index:99;gap:12px;font-size:13px;transition:left .2s}
+.sidebar.collapsed~.user-bar{left:0}
+.user-bar .points-badge{background:rgba(92,103,242,.1);color:var(--color-primary);padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600}
+.user-bar .user-name{font-weight:500;color:var(--color-text)}
+.user-menu{position:relative}
+.user-menu-trigger{cursor:pointer;display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:var(--btn-radius);transition:background .15s}
+.user-menu-trigger:hover{background:#f0f2f5}
+.user-dropdown{position:absolute;top:100%;right:0;background:#fff;border:1px solid #e8eaed;border-radius:var(--card-radius);box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:160px;z-index:300;overflow:hidden}
+.user-dropdown-item{padding:8px 16px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background .1s}
+.user-dropdown-item:hover{background:rgba(92,103,242,.06);color:var(--color-primary)}
+.user-dropdown-item.danger{color:var(--color-danger)}
+.user-dropdown-item.danger:hover{background:rgba(220,53,69,.06)}
+
+/* Recharge */
+.plan-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}
+.plan-card{border:2px solid #e8eaed;border-radius:var(--card-radius);padding:16px;text-align:center;cursor:pointer;transition:all .15s}
+.plan-card:hover{border-color:var(--color-primary);transform:translateY(-2px)}
+.plan-card.selected{border-color:var(--color-primary);background:rgba(92,103,242,.04)}
+.plan-card .plan-price{font-size:24px;font-weight:700;color:var(--color-primary)}
+.plan-card .plan-points{font-size:13px;color:var(--color-text-secondary);margin-top:4px}
+.pay-method-tabs{display:flex;gap:0;margin:12px 0}
+.pay-tab{flex:1;padding:10px;text-align:center;border:1px solid #e8eaed;cursor:pointer;font-size:13px;transition:all .15s}
+.pay-tab:first-child{border-radius:var(--btn-radius) 0 0 var(--btn-radius)}
+.pay-tab:last-child{border-radius:0 var(--btn-radius) var(--btn-radius) 0}
+.pay-tab.active{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}
+
+/* Points estimate */
+.estimate-box{background:#f8f9fa;border-radius:var(--card-radius);padding:12px 16px;margin:12px 0;font-size:13px;line-height:1.8}
+.estimate-box .est-row{display:flex;justify-content:space-between}
+.estimate-box .est-total{font-weight:600;border-top:1px solid #e0e3e8;padding-top:6px;margin-top:4px}
+.estimate-box .est-warn{color:var(--color-danger);font-weight:500}
+
+/* Tx history */
+.tx-list{max-height:400px;overflow-y:auto}
+.tx-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
+.tx-item:last-child{border-bottom:none}
+.tx-amount{font-weight:600}
+.tx-amount.positive{color:var(--color-success)}
+.tx-amount.negative{color:var(--color-danger)}
+.tx-desc{color:var(--color-text-secondary);font-size:12px}
+.tx-time{color:#999;font-size:11px}
+
+@media(max-width:1024px){.sidebar{width:0;overflow:hidden}.main-content{margin-left:0}.bottom-bar{left:0}.toggle-sidebar{left:0}.user-bar{left:0}}
 </style>
 </head>
 <body>
 <div id="app">
+
+<!-- Login/Register Page -->
+<div v-if="!isLoggedIn" class="login-page">
+  <div class="login-box">
+    <h2>{{isRegister?'注册账号':'登录'}}</h2>
+    <div class="form-group">
+      <label>用户名</label>
+      <input type="text" v-model="authForm.username" placeholder="请输入用户名" @keyup.enter="doAuth">
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" v-model="authForm.password" placeholder="请输入密码" @keyup.enter="doAuth">
+    </div>
+    <div v-if="isRegister" class="form-group">
+      <label>确认密码</label>
+      <input type="password" v-model="authForm.confirmPassword" placeholder="再次输入密码" @keyup.enter="doAuth">
+    </div>
+    <div v-if="authError" class="form-error" style="margin-bottom:8px">{{authError}}</div>
+    <button class="btn btn-primary" @click="doAuth" :disabled="authLoading">
+      <span v-if="authLoading" class="dot-spinner dot-spinner-sm"></span>
+      {{isRegister?'注册':'登录'}}
+    </button>
+    <div class="toggle-link">
+      <template v-if="isRegister">已有账号？<a @click="isRegister=false;authError=''">去登录</a></template>
+      <template v-else>还没有账号？<a @click="isRegister=true;authError=''">去注册</a></template>
+    </div>
+  </div>
+</div>
+
+<!-- Main App -->
+<template v-else>
+
+<!-- User bar -->
+<div class="user-bar" :style="{left:sidebarCollapsed?'0':'200px'}">
+  <span class="points-badge" @click="showTxHistory=true" style="cursor:pointer" title="点击查看消费记录">{{userInfo.points}} 点</span>
+  <div class="user-menu" @click.stop>
+    <div class="user-menu-trigger" @click="userMenuOpen=!userMenuOpen">
+      <span class="user-name">{{userInfo.username}}</span>
+      <svg width="10" height="6" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="#7f8c8d"/></svg>
+    </div>
+    <div class="user-dropdown" v-if="userMenuOpen">
+      <div class="user-dropdown-item" @click="showRecharge=true;userMenuOpen=false">充值</div>
+      <div class="user-dropdown-item" @click="showTxHistory=true;userMenuOpen=false">消费记录</div>
+      <div class="user-dropdown-item" @click="showChangePw=true;userMenuOpen=false">修改密码</div>
+      <div class="user-dropdown-item" v-if="userInfo.role==='admin'" @click="goAdmin">管理后台</div>
+      <div class="user-dropdown-item danger" @click="doLogout">退出登录</div>
+    </div>
+  </div>
+</div>
+
 <!-- Sidebar -->
 <aside class="sidebar" :class="{collapsed:sidebarCollapsed}">
   <div class="sidebar-header">单号查询</div>
   <div class="menu-section">
     <div class="menu-group-title" @click="menuOpen.trackList=!menuOpen.trackList">
-      <span>单号列表</span><span class="arrow" :class="{open:menuOpen.trackList}">▶</span>
+      <span>单号列表</span><span class="arrow" :class="{open:menuOpen.trackList}">&#9654;</span>
     </div>
     <div class="submenu" :style="{maxHeight:menuOpen.trackList?'600px':'0'}">
       <div v-for="s in mainStatusList" :key="s" class="menu-item"
@@ -234,19 +312,16 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
 </button>
 
 <!-- Main -->
-<main class="main-content">
+<main class="main-content" style="margin-top:42px">
   <div class="breadcrumb">单号列表 &gt; <span>{{sidebarActive}}</span></div>
 
   <!-- Filters -->
   <div class="card card-accent">
-    <!-- Tracking number - own row -->
     <div class="filter-group" style="margin-bottom:10px">
       <label>物流单号</label>
       <textarea v-model="filters.trackingInput" placeholder="输入单号，多个用换行分隔" class="tn-textarea"></textarea>
     </div>
-    <!-- Other filters row -->
     <div class="filter-grid" style="grid-template-columns:2fr 2fr 2fr 2fr 2fr">
-      <!-- Shipped time -->
       <div class="filter-group">
         <label>发货时间</label>
         <div class="date-range-wrap">
@@ -263,32 +338,23 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
             </div>
             <div class="date-calendars">
               <div class="cal-panel">
-                <div class="cal-header">
-                  <button @click="calMonth(-1)">&laquo;</button>
-                  <span>{{calLeftTitle}}</span><span></span>
-                </div>
+                <div class="cal-header"><button @click="calMonth(-1)">&laquo;</button><span>{{calLeftTitle}}</span><span></span></div>
                 <div class="cal-grid">
                   <div class="cal-day-header" v-for="d in '日一二三四五六'">{{d}}</div>
-                  <div v-for="d in calLeftDays" :key="'L'+d.key" class="cal-day"
-                       :class="calDayClass(d)" @click="onCalClick(d)">{{d.day}}</div>
+                  <div v-for="d in calLeftDays" :key="'L'+d.key" class="cal-day" :class="calDayClass(d)" @click="onCalClick(d)">{{d.day}}</div>
                 </div>
               </div>
               <div class="cal-panel">
-                <div class="cal-header">
-                  <span></span><span>{{calRightTitle}}</span>
-                  <button @click="calMonth(1)">&raquo;</button>
-                </div>
+                <div class="cal-header"><span></span><span>{{calRightTitle}}</span><button @click="calMonth(1)">&raquo;</button></div>
                 <div class="cal-grid">
                   <div class="cal-day-header" v-for="d in '日一二三四五六'">{{d}}</div>
-                  <div v-for="d in calRightDays" :key="'R'+d.key" class="cal-day"
-                       :class="calDayClass(d)" @click="onCalClick(d)">{{d.day}}</div>
+                  <div v-for="d in calRightDays" :key="'R'+d.key" class="cal-day" :class="calDayClass(d)" @click="onCalClick(d)">{{d.day}}</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <!-- Delivered time -->
       <div class="filter-group">
         <label>收货时间</label>
         <div class="date-range-wrap">
@@ -305,52 +371,40 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
             </div>
             <div class="date-calendars">
               <div class="cal-panel">
-                <div class="cal-header">
-                  <button @click="calMonth(-1)">&laquo;</button>
-                  <span>{{calLeftTitle}}</span><span></span>
-                </div>
+                <div class="cal-header"><button @click="calMonth(-1)">&laquo;</button><span>{{calLeftTitle}}</span><span></span></div>
                 <div class="cal-grid">
                   <div class="cal-day-header" v-for="d in '日一二三四五六'">{{d}}</div>
-                  <div v-for="d in calLeftDays" :key="'L'+d.key" class="cal-day"
-                       :class="calDayClass(d)" @click="onCalClick(d)">{{d.day}}</div>
+                  <div v-for="d in calLeftDays" :key="'L'+d.key" class="cal-day" :class="calDayClass(d)" @click="onCalClick(d)">{{d.day}}</div>
                 </div>
               </div>
               <div class="cal-panel">
-                <div class="cal-header">
-                  <span></span><span>{{calRightTitle}}</span>
-                  <button @click="calMonth(1)">&raquo;</button>
-                </div>
+                <div class="cal-header"><span></span><span>{{calRightTitle}}</span><button @click="calMonth(1)">&raquo;</button></div>
                 <div class="cal-grid">
                   <div class="cal-day-header" v-for="d in '日一二三四五六'">{{d}}</div>
-                  <div v-for="d in calRightDays" :key="'R'+d.key" class="cal-day"
-                       :class="calDayClass(d)" @click="onCalClick(d)">{{d.day}}</div>
+                  <div v-for="d in calRightDays" :key="'R'+d.key" class="cal-day" :class="calDayClass(d)" @click="onCalClick(d)">{{d.day}}</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <!-- Status -->
       <div class="filter-group">
         <label>包裹状态</label>
         <multi-select :options="mainStatusList" v-model="filters.mainStatus" placeholder="选择状态"></multi-select>
       </div>
-      <!-- Destination -->
       <div class="filter-group">
         <label>目的国</label>
         <multi-select :options="countryList" v-model="filters.destination" placeholder="选择目的国" searchable></multi-select>
       </div>
-      <!-- Remark -->
       <div class="filter-group">
         <label>备注</label>
         <input type="text" v-model="filters.remarkText" placeholder="输入备注关键词" style="height:30px;border:1px solid var(--color-border);border-radius:var(--input-radius);padding:0 10px;font-size:13px;outline:none">
       </div>
     </div>
-    <!-- Action row -->
     <div class="filter-row" style="margin-top:10px">
-      <button class="btn btn-primary" @click="doTrackAll" :disabled="trackingProgress||totalCount===0">
+      <button class="btn btn-primary" @click="doTrackAll" :disabled="!!trackingProgress||totalCount===0">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        查询
+        查询全部
       </button>
       <span style="margin-left:8px">找到 <span class="text-count">{{totalCount}}</span> 条</span>
       <span v-if="trackingProgress" style="margin-left:8px;color:var(--color-primary);font-size:12px;display:inline-flex;align-items:center;gap:4px"><span class="dot-spinner dot-spinner-sm"></span>{{trackingProgress}}</span>
@@ -360,17 +414,38 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
     </div>
   </div>
 
+  <!-- Track Result Summary -->
+  <div v-if="lastTrackResult&&!trackingProgress" class="track-result-bar" :class="{'has-errors':lastTrackResult.errors>0}">
+    <svg v-if="lastTrackResult.errors===0" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <div class="track-result-stats">
+      <span style="font-weight:600">查询完成</span>
+      <span>成功 <strong style="color:var(--color-success)">{{lastTrackResult.ok}}</strong></span>
+      <span v-if="lastTrackResult.errors>0">失败 <strong style="color:var(--color-danger)">{{lastTrackResult.errors}}</strong></span>
+      <span style="color:var(--color-text-secondary)">/ 总计 {{lastTrackResult.total}}</span>
+    </div>
+    <div class="track-result-progress">
+      <div class="track-result-progress-fill" :style="{width:trackResultPct+'%',background:lastTrackResult.errors?'var(--color-warning)':'var(--color-success)'}"></div>
+    </div>
+    <span class="track-result-pct" :style="{color:lastTrackResult.errors?'var(--color-warning)':'var(--color-success)'}">{{trackResultPct}}%</span>
+    <button v-if="lastTrackResult.errors>0&&lastTrackResult.failed_numbers&&lastTrackResult.failed_numbers.length" class="btn btn-primary btn-sm" @click="retryFailed" :disabled="!!trackingProgress">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      重试失败 ({{lastTrackResult.failed_numbers.length}})
+    </button>
+    <button class="track-result-close" @click="lastTrackResult=null" title="关闭">&times;</button>
+  </div>
+
   <!-- Table -->
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
           <th class="cb-col" style="width:36px"><input type="checkbox" :checked="allChecked" @change="toggleAll"></th>
-          <th style="width:130px">查询时间</th>
-          <th style="width:200px" class="sortable" :class="sortCls('tracking_number')" @click="toggleSort('tracking_number')">物流单号<span class="sort-icon"><span class="up">▲</span><span class="down">▼</span></span></th>
+          <th style="width:190px">最近查询</th>
+          <th style="width:200px" class="sortable" :class="sortCls('tracking_number')" @click="toggleSort('tracking_number')">物流单号<span class="sort-icon"><span class="up">&#9650;</span><span class="down">&#9660;</span></span></th>
           <th style="width:218px" class="sortable" :class="timeSortCls" @click="cycleTimeSort">时间<span style="font-size:9px;margin-left:3px;opacity:.7">{{timeSortLabel}}</span></th>
           <th style="width:120px">时效</th>
-          <th style="width:105px" class="sortable" :class="sortCls('main_status')" @click="toggleSort('main_status')">状态<span class="sort-icon"><span class="up">▲</span><span class="down">▼</span></span></th>
+          <th style="width:105px" class="sortable" :class="sortCls('main_status')" @click="toggleSort('main_status')">状态<span class="sort-icon"><span class="up">&#9650;</span><span class="down">&#9660;</span></span></th>
           <th style="width:75px">目的国</th>
           <th>轨迹</th>
           <th style="width:180px">备注</th>
@@ -382,17 +457,24 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
         <tr v-for="p in parcels" :key="p.tracking_number">
           <td class="cb-col"><input type="checkbox" :checked="selected.has(p.tracking_number)" @change="toggleSelect(p.tracking_number)"></td>
           <td class="query-time-cell">
-            <div v-if="trackingProgress && p.main_status==='查询不到'" style="display:flex;align-items:center;gap:4px">
-              <span class="dot-spinner dot-spinner-sm"></span><span style="font-size:10px;color:var(--color-text-secondary)">查询中</span>
-            </div>
+            <template v-if="isQuerying(p)">
+              <div style="display:flex;align-items:center;gap:4px">
+                <span class="dot-spinner dot-spinner-sm"></span><span style="color:var(--color-text-secondary)">查询中</span>
+              </div>
+              <div v-if="p.last_success_at" style="margin-top:2px">成功 {{fmtTime(p.last_success_at)}}</div>
+            </template>
+            <template v-else-if="p.last_fetched_at && p.last_fetched_at!==p.last_success_at">
+              <div style="display:flex;align-items:center;gap:3px;color:var(--color-warning)">失败 {{fmtTime(p.last_fetched_at)}} &#9888;</div>
+              <div v-if="p.last_success_at" style="margin-top:2px">成功 {{fmtTime(p.last_success_at)}}</div>
+            </template>
+            <template v-else-if="p.last_success_at">
+              <div>成功 {{fmtTime(p.last_success_at)}}</div>
+            </template>
             <template v-else>
-              <span :class="{'query-warn':p.main_status==='查询不到' && p.last_fetched_at}">{{fmtTime(p.last_fetched_at)}}</span>
-              <div v-if="p.main_status==='查询不到' && p.last_fetched_at" class="query-warn-text">⚠ 查询失败</div>
+              <span>-</span>
             </template>
           </td>
-          <td>
-            <div class="tn-cell" @click="copyTN(p.tracking_number)" :title="'点击复制 '+p.tracking_number">{{p.tracking_number}}</div>
-          </td>
+          <td><div class="tn-cell" @click="copyTN(p.tracking_number)" :title="'点击复制 '+p.tracking_number">{{p.tracking_number}}</div></td>
           <td class="time-cell">
             <p><span class="lbl">发货</span><span>{{fmtTime(p.shipped_at)}}</span></p>
             <p><span class="lbl">收货</span><span>{{fmtTime(p.delivered_at)}}</span></p>
@@ -440,16 +522,21 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
 <!-- Bottom bar -->
 <div class="bottom-bar" :style="{left:sidebarCollapsed?'0':'200px'}">
   <div class="bottom-actions">
-    <button class="btn btn-ghost btn-sm" @click="batchDelete" :disabled="!selected.size">🗑 删除选中({{selected.size}})</button>
-    <button class="btn btn-ghost btn-sm" @click="batchRefresh" :disabled="!selected.size||refreshing">
-      <span v-if="refreshing" class="dot-spinner dot-spinner-sm"></span> 重新获取轨迹
+    <span v-if="selected.size" style="font-size:12px;color:var(--color-primary);font-weight:500">已选 {{selected.size}} 条</span>
+    <button class="btn btn-ghost btn-sm" @click="selected=new Set()" v-if="selected.size" :disabled="!!trackingProgress">清除选中</button>
+    <button class="btn btn-ghost btn-sm" @click="batchDelete" :disabled="!selected.size||!!trackingProgress">删除选中</button>
+    <button class="btn btn-ghost btn-sm" @click="batchRefresh" :disabled="!selected.size||!!trackingProgress">
+      <span v-if="trackingProgress&&refreshing" class="dot-spinner dot-spinner-sm"></span> 重新获取轨迹
     </button>
   </div>
   <div class="pagination">
-    <select class="page-select" v-model.number="pageSize" @change="doSearch">
+    <select class="page-select" v-model.number="pageSize" @change="page=1;doSearch()">
       <option :value="20">20条/页</option>
       <option :value="50">50条/页</option>
       <option :value="100">100条/页</option>
+      <option :value="200">200条/页</option>
+      <option :value="500">500条/页</option>
+      <option :value="1000">1000条/页</option>
     </select>
     <button class="page-btn" :disabled="page<=1" @click="page--;doSearch()">&lt;</button>
     <button v-for="pn in visiblePages" :key="pn" class="page-btn" :class="{active:pn===page}" @click="page=pn;doSearch()">{{pn}}</button>
@@ -463,19 +550,25 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
   <div class="modal">
     <div class="modal-header">导入单号<button class="modal-close" @click="showImport=false">&times;</button></div>
     <div class="modal-body">
-      <div class="import-carrier">
-        <label>物流商 *</label>
-        <div class="val">USPS（美国邮政）</div>
-      </div>
+      <div style="margin-bottom:12px"><label style="font-weight:500;font-size:12px">物流商 *</label><div style="background:#f0f2f5;padding:6px 12px;border-radius:var(--input-radius);margin-top:4px;font-size:13px;display:inline-block">USPS（美国邮政）</div></div>
       <div>
         <label style="font-weight:500;font-size:12px">物流单号 *</label>
-        <textarea class="import-textarea" v-model="importText" placeholder="最大支持导入500条，单号之间用 Enter 键隔开"></textarea>
-        <div class="import-counter">{{importCount}}/500</div>
+        <textarea class="import-textarea" v-model="importText" placeholder="最大支持导入10000条，单号之间用 Enter 键隔开"></textarea>
+        <div class="import-counter">{{importCount}}/10000</div>
+      </div>
+      <div v-if="importEstimate" class="estimate-box">
+        <div class="est-row"><span>提交单号数</span><span>{{importEstimate.total}}</span></div>
+        <div class="est-row"><span>已查询过（免费）</span><span>{{importEstimate.already_queried}}</span></div>
+        <div class="est-row"><span>新单号</span><span>{{importEstimate.new_count}}</span></div>
+        <div class="est-row est-total"><span>需消耗点数</span><span>{{importEstimate.cost}} 点</span></div>
+        <div class="est-row"><span>当前余额</span><span>{{importEstimate.balance}} 点</span></div>
+        <div v-if="!importEstimate.sufficient" class="est-row est-warn"><span>余额不足，请先充值</span></div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" @click="showImport=false">取消</button>
-      <button class="btn btn-primary" @click="doImport" :disabled="importCount===0||importCount>500||importing">
+      <button class="btn btn-ghost" @click="checkImportCost" :disabled="importCount===0||importCount>10000">预估费用</button>
+      <button class="btn btn-primary" @click="doImport" :disabled="importCount===0||importCount>10000||importing">
         <span v-if="importing" class="dot-spinner dot-spinner-sm"></span> 开始上传
       </button>
     </div>
@@ -503,7 +596,7 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
   </div>
 </div>
 
-<!-- Remark Edit Modal -->
+<!-- Remark Modal -->
 <div class="modal-overlay" v-if="remarkModal.show" @mousedown.self="overlayMD=true" @mouseup.self="if(overlayMD)remarkModal.show=false;overlayMD=false" @mouseup="overlayMD=false">
   <div class="modal" style="width:400px">
     <div class="modal-header">修改备注<button class="modal-close" @click="remarkModal.show=false">&times;</button></div>
@@ -518,10 +611,94 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
   </div>
 </div>
 
+<!-- Change Password Modal -->
+<div class="modal-overlay" v-if="showChangePw" @mousedown.self="overlayMD=true" @mouseup.self="if(overlayMD)showChangePw=false;overlayMD=false" @mouseup="overlayMD=false">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">修改密码<button class="modal-close" @click="showChangePw=false">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:12px">
+        <label style="font-size:13px;color:var(--color-text-secondary);margin-bottom:4px;display:block">原密码</label>
+        <input type="password" v-model="changePwForm.oldPw" placeholder="请输入原密码">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label style="font-size:13px;color:var(--color-text-secondary);margin-bottom:4px;display:block">新密码</label>
+        <input type="password" v-model="changePwForm.newPw" placeholder="至少6个字符">
+      </div>
+      <div class="form-group">
+        <label style="font-size:13px;color:var(--color-text-secondary);margin-bottom:4px;display:block">确认新密码</label>
+        <input type="password" v-model="changePwForm.confirmPw" placeholder="再次输入新密码">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" @click="showChangePw=false">取消</button>
+      <button class="btn btn-primary" @click="doChangePw">确认修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- Recharge Modal -->
+<div class="modal-overlay" v-if="showRecharge" @mousedown.self="overlayMD=true" @mouseup.self="if(overlayMD)showRecharge=false;overlayMD=false" @mouseup="overlayMD=false">
+  <div class="modal" style="width:500px">
+    <div class="modal-header">充值点数<button class="modal-close" @click="showRecharge=false">&times;</button></div>
+    <div class="modal-body">
+      <div style="font-size:13px;margin-bottom:8px">当前余额: <strong style="color:var(--color-primary)">{{userInfo.points}} 点</strong></div>
+      <div class="plan-cards">
+        <div v-for="p in rechargePlans" :key="p.id" class="plan-card" :class="{selected:selectedPlan===p.id}" @click="selectedPlan=p.id">
+          <div class="plan-price">&#165;{{p.amount_yuan}}</div>
+          <div class="plan-points">{{p.points}} 点</div>
+        </div>
+      </div>
+      <div style="font-size:13px;margin-bottom:4px;font-weight:500">支付方式</div>
+      <div class="pay-method-tabs">
+        <div class="pay-tab" :class="{active:payMethod==='wechat'}" @click="payMethod='wechat'">微信支付</div>
+        <div class="pay-tab" :class="{active:payMethod==='alipay'}" @click="payMethod='alipay'">支付宝</div>
+      </div>
+      <div v-if="rechargeOrder" style="margin-top:16px;text-align:center">
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:8px">订单号: {{rechargeOrder.order_no}}</div>
+        <div style="background:#f8f9fa;border-radius:8px;padding:30px;margin:8px 0">
+          <div style="font-size:14px;color:var(--color-text-secondary)">支付接口开发中</div>
+          <div style="font-size:12px;color:#999;margin-top:4px">请联系管理员手动充值</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" @click="showRecharge=false;rechargeOrder=null">关闭</button>
+      <button v-if="!rechargeOrder" class="btn btn-primary" @click="doRecharge" :disabled="!selectedPlan">提交订单</button>
+    </div>
+  </div>
+</div>
+
+<!-- Transaction History Modal -->
+<div class="modal-overlay" v-if="showTxHistory" @mousedown.self="overlayMD=true" @mouseup.self="if(overlayMD)showTxHistory=false;overlayMD=false" @mouseup="overlayMD=false">
+  <div class="modal" style="width:520px">
+    <div class="modal-header">消费记录<button class="modal-close" @click="showTxHistory=false">&times;</button></div>
+    <div class="modal-body">
+      <div v-if="!txList.length" class="empty-state" style="padding:20px">暂无记录</div>
+      <div class="tx-list" v-else>
+        <div v-for="tx in txList" :key="tx.id" class="tx-item">
+          <div>
+            <div>{{tx.description||txTypeLabel(tx.type)}}</div>
+            <div class="tx-time">{{fmtTime(tx.created_at)}}</div>
+          </div>
+          <div class="tx-amount" :class="{positive:tx.amount>0,negative:tx.amount<0}">{{tx.amount>0?'+':''}}{{tx.amount}}</div>
+        </div>
+      </div>
+      <div v-if="txTotalPages>1" style="margin-top:12px;text-align:center">
+        <button class="btn btn-ghost btn-sm" :disabled="txPage<=1" @click="txPage--;loadTxHistory()">上一页</button>
+        <span style="margin:0 8px;font-size:12px">{{txPage}}/{{txTotalPages}}</span>
+        <button class="btn btn-ghost btn-sm" :disabled="txPage>=txTotalPages" @click="txPage++;loadTxHistory()">下一页</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</template>
+
 <!-- Toasts -->
 <div class="toast">
   <div v-for="t in toasts" :key="t.id" class="toast-item" :class="'toast-'+t.type">{{t.msg}}</div>
 </div>
+
 </div>
 
 <script>
@@ -530,25 +707,13 @@ const MultiSelect={
   emits:['update:modelValue'],
   data(){return{open:false,search:''}},
   computed:{
-    filtered(){
-      if(!this.search)return this.options;
-      const s=this.search.toLowerCase();
-      return this.options.filter(o=>o.toLowerCase().includes(s));
-    },
+    filtered(){if(!this.search)return this.options;const s=this.search.toLowerCase();return this.options.filter(o=>o.toLowerCase().includes(s))},
     displayTags(){return(this.modelValue||[]).slice(0,3)},
     moreCount(){return Math.max(0,(this.modelValue||[]).length-3)},
   },
   methods:{
-    toggle(opt){
-      const v=[...(this.modelValue||[])];
-      const i=v.indexOf(opt);
-      if(i>=0)v.splice(i,1);else v.push(opt);
-      this.$emit('update:modelValue',v);
-    },
-    remove(opt){
-      const v=(this.modelValue||[]).filter(x=>x!==opt);
-      this.$emit('update:modelValue',v);
-    },
+    toggle(opt){const v=[...(this.modelValue||[])];const i=v.indexOf(opt);if(i>=0)v.splice(i,1);else v.push(opt);this.$emit('update:modelValue',v)},
+    remove(opt){const v=(this.modelValue||[]).filter(x=>x!==opt);this.$emit('update:modelValue',v)},
     isSelected(opt){return(this.modelValue||[]).includes(opt)},
     close(e){if(!this.$el.contains(e.target))this.open=false},
   },
@@ -556,57 +721,162 @@ const MultiSelect={
   unmounted(){document.removeEventListener('click',this.close)},
   template:`<div class="multi-select">
     <div class="ms-trigger" :class="{open}" @click="open=!open">
-      <template v-if="displayTags.length">
-        <span v-for="t in displayTags" :key="t" class="ms-tag">{{t}}<span class="ms-tag-close" @click.stop="remove(t)">&times;</span></span>
-        <span v-if="moreCount" class="ms-tag">+{{moreCount}}</span>
-      </template>
+      <template v-if="displayTags.length"><span v-for="t in displayTags" :key="t" class="ms-tag">{{t}}<span class="ms-tag-close" @click.stop="remove(t)">&times;</span></span><span v-if="moreCount" class="ms-tag">+{{moreCount}}</span></template>
       <span v-else class="ms-placeholder">{{placeholder||'请选择'}}</span>
     </div>
     <div class="ms-dropdown" v-if="open">
       <div class="ms-search" v-if="searchable"><input type="text" v-model="search" placeholder="搜索..." @click.stop></div>
-      <div class="ms-list">
-        <div v-for="opt in filtered" :key="opt" class="ms-option" :class="{selected:isSelected(opt)}" @click.stop="toggle(opt)">
-          <input type="checkbox" :checked="isSelected(opt)" tabindex="-1"> {{opt}}
-        </div>
-      </div>
+      <div class="ms-list"><div v-for="opt in filtered" :key="opt" class="ms-option" :class="{selected:isSelected(opt)}" @click.stop="toggle(opt)"><input type="checkbox" :checked="isSelected(opt)" tabindex="-1"> {{opt}}</div></div>
     </div>
   </div>`
 };
 
+if(typeof Vue==='undefined'){
+  document.body.innerHTML='<div style="max-width:520px;margin:80px auto;padding:24px;font-family:sans-serif;line-height:1.6">'
+    +'<h2>页面资源加载失败</h2><p>Vue 脚本未能从 CDN 加载。请检查网络，或刷新后重试。</p>'
+    +'<p>后端健康检查：<a href="/health">/health</a></p></div>';
+  throw new Error('Vue not loaded');
+}
 const{createApp,ref,reactive,computed,onMounted,watch}=Vue;
+
+function apiFetch(url,opts={}){
+  const token=localStorage.getItem('auth_token');
+  const headers={...(opts.headers||{})};
+  if(token)headers['Authorization']='Bearer '+token;
+  if(opts.body&&typeof opts.body==='string')headers['Content-Type']='application/json';
+  return fetch(url,{...opts,headers});
+}
+
 const app=createApp({
   components:{MultiSelect},
   setup(){
     const mainStatusList=["全部","查询不到","暂未上线","运输途中","已上网","已交航","到达目的国","到达待取","派送途中","投递失败","可能异常","运输过久","签收成功","包裹退回"];
-    const subStatusList=["全部","查询不到","无效的单号","暂未上线","运输途中","已上网","已交航","到达目的国","清关中","清关完成","航班起飞","航班抵达","到达待取","派送途中","签收成功","投递失败","找不到收件人","地址有误","拒收包裹","安全原因","可能异常","包裹丢失","包裹损坏","物流单被取消","运输延迟","可能被拒收","可能安全原因","可能地址有误","可能没人签收","签收超时","轨迹更新异常","上网超时","等待交税","清关失败","运输过久","包裹退回","退回已签收","退回处理中"];
     const countryList=["全部","(未知)","AF-阿富汗","AL-阿尔巴尼亚","DZ-阿尔及利亚","AD-安道尔","AO-安哥拉","AR-阿根廷","AM-亚美尼亚","AU-澳大利亚","AT-奥地利","AZ-阿塞拜疆","BS-巴哈马","BH-巴林","BD-孟加拉国","BB-巴巴多斯","BY-白俄罗斯","BE-比利时","BZ-伯利兹","BJ-贝宁","BT-不丹","BO-玻利维亚","BA-波斯尼亚和黑塞哥维那","BW-博茨瓦纳","BR-巴西","BN-文莱","BG-保加利亚","BF-布基纳法索","BI-布隆迪","KH-柬埔寨","CM-喀麦隆","CA-加拿大","CL-智利","CN-中国","CO-哥伦比亚","CG-刚果（布）","CD-刚果（金）","CR-哥斯达黎加","HR-克罗地亚","CU-古巴","CY-塞浦路斯","CZ-捷克","DK-丹麦","DO-多米尼加","EC-厄瓜多尔","EG-埃及","SV-萨尔瓦多","EE-爱沙尼亚","ET-埃塞俄比亚","FJ-斐济","FI-芬兰","FR-法国","GA-加蓬","GE-格鲁吉亚","DE-德国","GH-加纳","GR-希腊","GT-危地马拉","GN-几内亚","GY-圭亚那","HT-海地","HN-洪都拉斯","HK-香港[CN]","HU-匈牙利","IS-冰岛","IN-印度","ID-印尼","IR-伊朗","IQ-伊拉克","IE-爱尔兰","IL-以色列","IT-意大利","JM-牙买加","JP-日本","JO-约旦","KZ-哈萨克斯坦","KE-肯尼亚","KR-韩国","KW-科威特","KG-吉尔吉斯斯坦","LA-老挝","LV-拉脱维亚","LB-黎巴嫩","LY-利比亚","LT-立陶宛","LU-卢森堡","MO-澳门[CN]","MG-马达加斯加","MY-马来西亚","MV-马尔代夫","ML-马里","MT-马耳他","MX-墨西哥","MD-摩尔多瓦","MC-摩纳哥","MN-蒙古国","ME-黑山","MA-摩洛哥","MZ-莫桑比克","MM-缅甸","NA-纳米比亚","NP-尼泊尔","NL-荷兰","NZ-新西兰","NI-尼加拉瓜","NE-尼日尔","NG-尼日利亚","MK-北马其顿","NO-挪威","OM-阿曼","PK-巴基斯坦","PA-巴拿马","PY-巴拉圭","PE-秘鲁","PH-菲律宾","PL-波兰","PT-葡萄牙","PR-波多黎各","QA-卡塔尔","RO-罗马尼亚","RU-俄罗斯","RW-卢旺达","SA-沙特阿拉伯","SN-塞内加尔","RS-塞尔维亚","SG-新加坡","SK-斯洛伐克","SI-斯洛文尼亚","ZA-南非","ES-西班牙","LK-斯里兰卡","SD-苏丹","SE-瑞典","CH-瑞士","SY-叙利亚","TW-台湾[CN]","TJ-塔吉克斯坦","TZ-坦桑尼亚","TH-泰国","TG-多哥","TT-特立尼达和多巴哥","TN-突尼斯","TR-土耳其","TM-土库曼斯坦","UG-乌干达","UA-乌克兰","AE-阿联酋","GB-英国","US-美国","UY-乌拉圭","UZ-乌兹别克斯坦","VE-委内瑞拉","VN-越南","YE-也门","ZM-赞比亚","ZW-津巴布韦","RA-美国偏远地区","AA-美国军队","XK-科索沃"];
     const exportColOptions=[
-      {key:'shipped_at',label:'发货时间'},{key:'added_at',label:'添加时间'},
-      {key:'last_fetched_at',label:'最近获取时间'},{key:'tracking_number',label:'物流单号'},
+      {key:'shipped_at',label:'发货时间'},
+      {key:'last_fetched_at',label:'查询时间'},{key:'tracking_number',label:'物流单号'},
       {key:'carrier',label:'物流商'},{key:'main_status',label:'状态'},
-      {key:'sub_status',label:'子状态'},{key:'destination_country',label:'目的国'},
-      {key:'latest_event',label:'末条轨迹事件'},{key:'online_event',label:'上网轨迹'},
-      {key:'delivery_event',label:'签收轨迹'},{key:'transit_days',label:'运输(天)'},
+      {key:'destination_country',label:'目的国'},
+      {key:'latest_event',label:'末条轨迹事件'},{key:'track_events',label:'轨迹'},
+      {key:'transit_days',label:'运输(天)'},
       {key:'delivered_days',label:'签收(天)'},{key:'remark',label:'备注'},
-      {key:'tags',label:'标签'},
     ];
-
     const colorMap={"签收成功":"#28a745","运输途中":"#5c67f2","已上网":"#5c67f2","已交航":"#5c67f2","到达目的国":"#5c67f2","派送途中":"#17a2b8","到达待取":"#17a2b8","投递失败":"#dc3545","可能异常":"#dc3545","运输过久":"#dc3545","包裹退回":"#dc3545","暂未上线":"#7f8c8d","查询不到":"#7f8c8d"};
     const statusColor=s=>colorMap[s]||'#7f8c8d';
 
+    // ─── Auth ───
+    const isLoggedIn=ref(!!localStorage.getItem('auth_token'));
+    const isRegister=ref(false);
+    const authForm=reactive({username:'',password:'',confirmPassword:''});
+    const authError=ref('');
+    const authLoading=ref(false);
+    const userInfo=reactive({id:0,username:'',points:0,role:''});
+    const userMenuOpen=ref(false);
+
+    const refreshUserInfo=async()=>{
+      try{
+        const r=await apiFetch('/api/auth/me');
+        if(r.ok){const j=await r.json();Object.assign(userInfo,j);}
+        else if(r.status===401){localStorage.removeItem('auth_token');isLoggedIn.value=false;}
+      }catch(e){}
+    };
+
+    const doAuth=async()=>{
+      authError.value='';
+      if(!authForm.username.trim()||!authForm.password){authError.value='请填写用户名和密码';return;}
+      if(isRegister.value){
+        if(authForm.password.length<6){authError.value='密码至少6个字符';return;}
+        if(authForm.password!==authForm.confirmPassword){authError.value='两次密码不一致';return;}
+      }
+      authLoading.value=true;
+      try{
+        const url=isRegister.value?'/api/auth/register':'/api/auth/login';
+        const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:authForm.username.trim(),password:authForm.password})});
+        const j=await r.json();
+        if(!r.ok){authError.value=j.error||'操作失败';return;}
+        localStorage.setItem('auth_token',j.token);
+        Object.assign(userInfo,j.user);
+        isLoggedIn.value=true;
+        authForm.username='';authForm.password='';authForm.confirmPassword='';
+        Vue.nextTick(()=>{doSearch();loadPlans();});
+      }catch(e){authError.value='网络错误';}
+      finally{authLoading.value=false;}
+    };
+
+    const doLogout=async()=>{
+      try{await apiFetch('/api/auth/logout',{method:'POST'});}catch(e){}
+      localStorage.removeItem('auth_token');
+      isLoggedIn.value=false;
+      userMenuOpen.value=false;
+      parcels.value=[];stats.value={};totalCount.value=0;totalPages.value=1;
+      selected.value=new Set();expandedTracks.value=new Set();
+      Object.assign(filters,{shippedFrom:'',shippedTo:'',deliveredFrom:'',deliveredTo:'',mainStatus:[],subStatus:[],destination:[],trackingInput:'',remarkText:''});
+      sidebarActive.value='全部';page.value=1;trackingProgress.value='';
+      Object.assign(userInfo,{id:0,username:'',points:0,role:''});
+    };
+
+    const goAdmin=()=>{window.open('/admin','_blank');userMenuOpen.value=false;};
+
+    // ─── Change Password ───
+    const showChangePw=ref(false);
+    const changePwForm=reactive({oldPw:'',newPw:'',confirmPw:''});
+    const doChangePw=async()=>{
+      if(!changePwForm.oldPw){toast('请输入原密码','error');return;}
+      if(changePwForm.newPw.length<6){toast('新密码至少6个字符','error');return;}
+      if(changePwForm.newPw!==changePwForm.confirmPw){toast('两次密码不一致','error');return;}
+      try{
+        const r=await apiFetch('/api/auth/change_password',{method:'POST',body:JSON.stringify({old_password:changePwForm.oldPw,new_password:changePwForm.newPw})});
+        const j=await r.json();
+        if(!r.ok){toast(j.error||'修改失败','error');return;}
+        toast('密码修改成功','success');showChangePw.value=false;
+        changePwForm.oldPw='';changePwForm.newPw='';changePwForm.confirmPw='';
+      }catch(e){toast('网络错误','error');}
+    };
+
+    // ─── Recharge ───
+    const showRecharge=ref(false);
+    const rechargePlans=ref([]);
+    const selectedPlan=ref(null);
+    const payMethod=ref('wechat');
+    const rechargeOrder=ref(null);
+
+    const loadPlans=async()=>{
+      try{const r=await apiFetch('/api/recharge/plans');const j=await r.json();rechargePlans.value=j.plans||[];}catch(e){}
+    };
+
+    const doRecharge=async()=>{
+      if(!selectedPlan.value)return;
+      try{
+        const r=await apiFetch('/api/recharge/create',{method:'POST',body:JSON.stringify({plan_id:selectedPlan.value,payment_method:payMethod.value})});
+        const j=await r.json();
+        if(!r.ok){toast(j.error||'创建订单失败','error');return;}
+        rechargeOrder.value=j;
+      }catch(e){toast('网络错误','error');}
+    };
+
+    // ─── Tx History ───
+    const showTxHistory=ref(false);
+    const txList=ref([]);
+    const txPage=ref(1);
+    const txTotalPages=ref(1);
+    const txTypeLabel=t=>({query:'查询扣费',recharge:'充值',register_gift:'注册赠送',admin_adjust:'管理员调整'}[t]||t);
+
+    const loadTxHistory=async()=>{
+      try{const r=await apiFetch('/api/points/transactions?page='+txPage.value+'&page_size=20');const j=await r.json();txList.value=j.data||[];txTotalPages.value=j.total_pages||1;}catch(e){}
+    };
+    watch(showTxHistory,v=>{if(v){txPage.value=1;loadTxHistory();}});
+
+    // ─── Main app state ───
     const sidebarCollapsed=ref(false);
     const menuOpen=reactive({trackList:true});
     const sidebarActive=ref('全部');
     const stats=ref({});
-
     const filters=reactive({shippedFrom:'',shippedTo:'',deliveredFrom:'',deliveredTo:'',mainStatus:[],subStatus:[],destination:[],trackingInput:'',remarkText:''});
-    const showBatchInput=ref(false);
     const sortField=ref('shipped_at');
     const sortOrder=ref('desc');
     const page=ref(1);
     const pageSize=ref(20);
     const jumpPage=ref(1);
-
     const parcels=ref([]);
     const totalCount=ref(0);
     const totalPages=ref(1);
@@ -614,55 +884,32 @@ const app=createApp({
     const selected=ref(new Set());
     const refreshing=ref(false);
 
-    // date picker
     const activeDatePanel=ref('');
     const calBase=ref(new Date());
     const calSelectState=ref(0);
-
     const fmtDate=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return`${y}-${m}-${dd}`};
-    const shippedRangeText=computed(()=>{
-      if(filters.shippedFrom&&filters.shippedTo)return`${filters.shippedFrom} ~ ${filters.shippedTo}`;
-      return'';
-    });
-    const deliveredRangeText=computed(()=>{
-      if(filters.deliveredFrom&&filters.deliveredTo)return`${filters.deliveredFrom} ~ ${filters.deliveredTo}`;
-      return'';
-    });
-    const openDatePanel=which=>{
-      if(activeDatePanel.value===which){activeDatePanel.value='';return;}
-      activeDatePanel.value=which;calSelectState.value=0;
-    };
-    const clearDateRange=which=>{
-      if(which==='shipped'){filters.shippedFrom='';filters.shippedTo='';}
-      else{filters.deliveredFrom='';filters.deliveredTo='';}
-      activeDatePanel.value='';
-    };
+    const shippedRangeText=computed(()=>filters.shippedFrom&&filters.shippedTo?`${filters.shippedFrom} ~ ${filters.shippedTo}`:'');
+    const deliveredRangeText=computed(()=>filters.deliveredFrom&&filters.deliveredTo?`${filters.deliveredFrom} ~ ${filters.deliveredTo}`:'');
+    const openDatePanel=which=>{if(activeDatePanel.value===which){activeDatePanel.value='';return;}activeDatePanel.value=which;calSelectState.value=0;};
+    const clearDateRange=which=>{if(which==='shipped'){filters.shippedFrom='';filters.shippedTo='';}else{filters.deliveredFrom='';filters.deliveredTo='';}activeDatePanel.value='';};
     const setDateShortcut2=(which,type)=>{
       const now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
       let from,to=fmtDate(today);
-      if(type==='today'){from=to;}
+      if(type==='today')from=to;
       else if(type==='yesterday'){const y=new Date(today);y.setDate(y.getDate()-1);from=to=fmtDate(y);}
       else if(type==='week'){const w=new Date(today);w.setDate(w.getDate()-7);from=fmtDate(w);}
       else if(type==='month1'){const m=new Date(today);m.setMonth(m.getMonth()-1);from=fmtDate(m);}
       else if(type==='month2'){const m=new Date(today);m.setMonth(m.getMonth()-2);from=fmtDate(m);}
       else if(type==='month3'){const m=new Date(today);m.setMonth(m.getMonth()-3);from=fmtDate(m);}
-      if(which==='shipped'){filters.shippedFrom=from;filters.shippedTo=to;}
-      else{filters.deliveredFrom=from;filters.deliveredTo=to;}
+      if(which==='shipped'){filters.shippedFrom=from;filters.shippedTo=to;}else{filters.deliveredFrom=from;filters.deliveredTo=to;}
       activeDatePanel.value='';
     };
     const getCalDays=(year,month)=>{
-      const firstDay=new Date(year,month,1).getDay();
-      const daysInMonth=new Date(year,month+1,0).getDate();
-      const prevDays=new Date(year,month,0).getDate();
-      const days=[];
-      for(let i=firstDay-1;i>=0;i--){days.push({day:prevDays-i,month:month-1,year,other:true,key:`p${prevDays-i}`});}
+      const firstDay=new Date(year,month,1).getDay();const daysInMonth=new Date(year,month+1,0).getDate();const prevDays=new Date(year,month,0).getDate();const days=[];
+      for(let i=firstDay-1;i>=0;i--)days.push({day:prevDays-i,month:month-1,year,other:true,key:`p${prevDays-i}`});
       const today=new Date();const todayStr=fmtDate(today);
-      for(let d=1;d<=daysInMonth;d++){
-        const dt=new Date(year,month,d);const str=fmtDate(dt);
-        days.push({day:d,month,year,dateStr:str,today:str===todayStr,disabled:dt>today,key:`c${d}`});
-      }
-      const rem=42-days.length;
-      for(let d=1;d<=rem;d++){days.push({day:d,month:month+1,year,other:true,disabled:true,key:`n${d}`});}
+      for(let d=1;d<=daysInMonth;d++){const dt=new Date(year,month,d);const str=fmtDate(dt);days.push({day:d,month,year,dateStr:str,today:str===todayStr,disabled:dt>today,key:`c${d}`});}
+      const rem=42-days.length;for(let d=1;d<=rem;d++)days.push({day:d,month:month+1,year,other:true,disabled:true,key:`n${d}`});
       return days;
     };
     const calLeftTitle=computed(()=>{const d=calBase.value;const m=new Date(d.getFullYear(),d.getMonth()-1,1);return`${m.getFullYear()} 年 ${m.getMonth()+1} 月`});
@@ -673,58 +920,48 @@ const app=createApp({
     const _activeFrom=()=>activeDatePanel.value==='shipped'?'shippedFrom':'deliveredFrom';
     const _activeTo=()=>activeDatePanel.value==='shipped'?'shippedTo':'deliveredTo';
     const calDayClass=d=>{
-      const cls={};
-      if(d.other)cls['other-month']=true;
-      if(d.disabled)cls['disabled']=true;
-      if(d.today)cls['today']=true;
+      const cls={};if(d.other)cls['other-month']=true;if(d.disabled)cls['disabled']=true;if(d.today)cls['today']=true;
       const af=filters[_activeFrom()],at=filters[_activeTo()];
-      if(d.dateStr&&af&&at){
-        if(d.dateStr===af)cls['start-date']=true;
-        if(d.dateStr===at)cls['end-date']=true;
-        if(d.dateStr>=af&&d.dateStr<=at)cls['in-range']=true;
-      }
+      if(d.dateStr&&af&&at){if(d.dateStr===af)cls['start-date']=true;if(d.dateStr===at)cls['end-date']=true;if(d.dateStr>=af&&d.dateStr<=at)cls['in-range']=true;}
       return cls;
     };
     const onCalClick=d=>{
-      if(d.disabled||d.other)return;
-      const fk=_activeFrom(),tk=_activeTo();
+      if(d.disabled||d.other)return;const fk=_activeFrom(),tk=_activeTo();
       if(calSelectState.value===0){filters[fk]=d.dateStr;filters[tk]='';calSelectState.value=1;}
-      else{
-        if(d.dateStr<filters[fk]){filters[tk]=filters[fk];filters[fk]=d.dateStr;}
-        else{filters[tk]=d.dateStr;}
-        calSelectState.value=0;activeDatePanel.value='';
-      }
+      else{if(d.dateStr<filters[fk]){filters[tk]=filters[fk];filters[fk]=d.dateStr;}else{filters[tk]=d.dateStr;}calSelectState.value=0;activeDatePanel.value='';}
     };
 
-    // toasts
-    const toasts=ref([]);
-    let toastId=0;
+    const toasts=ref([]);let toastId=0;
     const toast=(msg,type='info')=>{const id=++toastId;toasts.value.push({id,msg,type});setTimeout(()=>{toasts.value=toasts.value.filter(t=>t.id!==id)},3000)};
 
-    // modals
-    const showImport=ref(false);
-    const importText=ref('');
-    const importing=ref(false);
-    const importCount=computed(()=>{const lines=importText.value.split('\n').map(l=>l.trim()).filter(Boolean);return lines.length});
+    const showImport=ref(false);const importText=ref('');const importing=ref(false);
+    const importCount=computed(()=>importText.value.split('\n').map(l=>l.trim()).filter(Boolean).length);
+    const importEstimate=ref(null);
+
+    const checkImportCost=async()=>{
+      const lines=importText.value.split('\n').map(l=>l.trim()).filter(Boolean);
+      if(!lines.length)return;
+      try{
+        const r=await apiFetch('/api/points/estimate',{method:'POST',body:JSON.stringify({tracking_numbers:lines})});
+        importEstimate.value=await r.json();
+      }catch(e){toast('预估失败','error');}
+    };
+
     const showExport=ref(false);
-    const exportCols=ref(new Set(['tracking_number','carrier','main_status','sub_status','destination_country','shipped_at','added_at','latest_event','remark']));
+    const exportCols=ref(new Set(['tracking_number','carrier','main_status','destination_country','shipped_at','last_fetched_at','latest_event','remark']));
     const exporting=ref(false);
     const exportAllCols=computed(()=>exportCols.value.size===exportColOptions.length);
     const toggleExportAll=()=>{if(exportAllCols.value)exportCols.value=new Set();else exportCols.value=new Set(exportColOptions.map(c=>c.key))};
     const toggleExportCol=k=>{const s=new Set(exportCols.value);if(s.has(k))s.delete(k);else s.add(k);exportCols.value=s};
-
     const overlayMD=ref(false);
     const remarkModal=reactive({show:false,tn:'',text:''});
     const editRemark=p=>{remarkModal.tn=p.tracking_number;remarkModal.text=p.remark||'';remarkModal.show=true};
     const saveRemark=async()=>{
-      await fetch('/api/parcels/remark',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_number:remarkModal.tn,remark:remarkModal.text})});
+      await apiFetch('/api/parcels/remark',{method:'POST',body:JSON.stringify({tracking_number:remarkModal.tn,remark:remarkModal.text})});
       remarkModal.show=false;toast('备注已保存','success');doSearch();
     };
 
-    // data
-    const fetchStats=async()=>{
-      try{const r=await fetch('/api/parcels/stats');stats.value=await r.json()}catch(e){console.error(e)}
-    };
+    const fetchStats=async()=>{try{const r=await apiFetch('/api/parcels/stats');stats.value=await r.json()}catch(e){}};
     const doSearch=async()=>{
       loading.value=true;
       const params=new URLSearchParams({page:page.value,page_size:pageSize.value,sort_field:sortField.value,sort_order:sortOrder.value});
@@ -737,85 +974,87 @@ const app=createApp({
       if(filters.trackingInput.trim())params.set('tracking_numbers',filters.trackingInput.trim());
       if(filters.remarkText)params.set('remark',filters.remarkText);
       try{
-        const r=await fetch('/api/parcels?'+params);const j=await r.json();
+        const r=await apiFetch('/api/parcels?'+params);
+        if(r.status===401){localStorage.removeItem('auth_token');isLoggedIn.value=false;return;}
+        const j=await r.json();
         parcels.value=j.data||[];totalCount.value=j.total||0;totalPages.value=j.total_pages||1;
       }catch(e){toast('加载失败: '+e.message,'error')}
-      loading.value=false;selected.value=new Set();
-      fetchStats();
+      loading.value=false;fetchStats();refreshUserInfo();
     };
 
     const allChecked=computed(()=>parcels.value.length>0&&parcels.value.every(p=>selected.value.has(p.tracking_number)));
-    const toggleAll=()=>{
-      if(allChecked.value)selected.value=new Set();
-      else selected.value=new Set(parcels.value.map(p=>p.tracking_number));
-    };
+    const toggleAll=()=>{const s=new Set(selected.value);if(allChecked.value){parcels.value.forEach(p=>s.delete(p.tracking_number));}else{parcels.value.forEach(p=>s.add(p.tracking_number));}selected.value=s;};
     const toggleSelect=tn=>{const s=new Set(selected.value);if(s.has(tn))s.delete(tn);else s.add(tn);selected.value=s};
-
     const visiblePages=computed(()=>{
-      const tp=totalPages.value,cp=page.value;
-      const pages=[];
+      const tp=totalPages.value,cp=page.value;const pages=[];
       let start=Math.max(1,cp-2),end=Math.min(tp,cp+2);
       if(end-start<4){if(start===1)end=Math.min(tp,5);else start=Math.max(1,tp-4);}
-      for(let i=start;i<=end;i++)pages.push(i);
-      return pages;
+      for(let i=start;i<=end;i++)pages.push(i);return pages;
     });
-
     const expandedTracks=ref(new Set());
     const toggleTrack=tn=>{const s=new Set(expandedTracks.value);if(s.has(tn))s.delete(tn);else s.add(tn);expandedTracks.value=s};
-
     const fmtTime=t=>{if(!t)return'-';return t.replace('T',' ').substring(0,19)};
     const copyTN=async tn=>{try{await navigator.clipboard.writeText(tn);toast('已复制: '+tn,'success')}catch(e){toast('复制失败','error')}};
-    const toggleSort=field=>{
-      if(sortField.value===field){sortOrder.value=sortOrder.value==='desc'?'asc':'desc';}
-      else{sortField.value=field;sortOrder.value='desc';}
-      page.value=1;doSearch();
-    };
+    const toggleSort=field=>{if(sortField.value===field)sortOrder.value=sortOrder.value==='desc'?'asc':'desc';else{sortField.value=field;sortOrder.value='desc';}page.value=1;doSearch()};
     const sortCls=field=>({'sort-asc':sortField.value===field&&sortOrder.value==='asc','sort-desc':sortField.value===field&&sortOrder.value==='desc'});
-
     const _timeSortStates=[{f:'shipped_at',o:'desc'},{f:'shipped_at',o:'asc'},{f:'delivered_at',o:'desc'},{f:'delivered_at',o:'asc'}];
     const _timeSortLabels=['发货↓','发货↑','收货↓','收货↑'];
     const timeSortIdx=ref(0);
-    const cycleTimeSort=()=>{
-      timeSortIdx.value=(timeSortIdx.value+1)%4;
-      const s=_timeSortStates[timeSortIdx.value];
-      sortField.value=s.f;sortOrder.value=s.o;
-      page.value=1;doSearch();
-    };
+    const cycleTimeSort=()=>{timeSortIdx.value=(timeSortIdx.value+1)%4;const s=_timeSortStates[timeSortIdx.value];sortField.value=s.f;sortOrder.value=s.o;page.value=1;doSearch()};
     const timeSortLabel=computed(()=>_timeSortLabels[timeSortIdx.value]);
-    const timeSortCls=computed(()=>({
-      'sort-asc':_timeSortStates[timeSortIdx.value].o==='asc',
-      'sort-desc':_timeSortStates[timeSortIdx.value].o==='desc',
-    }));
+    const timeSortCls=computed(()=>({'sort-asc':_timeSortStates[timeSortIdx.value].o==='asc','sort-desc':_timeSortStates[timeSortIdx.value].o==='desc'}));
 
     let _filterTimer=null;
-    const debouncedSearch=()=>{
-      clearTimeout(_filterTimer);
-      _filterTimer=setTimeout(()=>{page.value=1;doSearch()},300);
-    };
-
-    const onSidebarClick=s=>{
-      sidebarActive.value=s;
-      filters.mainStatus=s==='全部'?[]:[s];
-    };
+    const debouncedSearch=()=>{clearTimeout(_filterTimer);_filterTimer=setTimeout(()=>{page.value=1;doSearch()},300)};
+    const onSidebarClick=s=>{sidebarActive.value=s;filters.mainStatus=s==='全部'?[]:[s]};
 
     const trackingProgress=ref('');
+    const queryStartedAt=ref('');
+    const _queryingMap=ref({});
+    const isQuerying=p=>trackingProgress.value&&(p.tracking_number in _queryingMap.value);
+    const lastTrackResult=ref(null);
+    const _accumulatedBase=ref(null);
+    const trackResultPct=computed(()=>{if(!lastTrackResult.value||!lastTrackResult.value.total)return 0;return Math.round(lastTrackResult.value.ok/lastTrackResult.value.total*100)});
     let _pollTimer=null;
     const _startTrackPoll=()=>{
       if(_pollTimer)clearInterval(_pollTimer);
+      lastTrackResult.value=null;
+      _accumulatedBase.value=null;
+      if(!queryStartedAt.value)queryStartedAt.value=new Date().toISOString().substring(0,19);
       _pollTimer=setInterval(async()=>{
         try{
-          const r=await fetch('/api/parcels/track_status');const s=await r.json();
-          if(s.running){
-            trackingProgress.value=`正在查询轨迹 (${s.done}/${s.total})...`;
-            doSearch();
-          }else{
-            trackingProgress.value='';
-            clearInterval(_pollTimer);_pollTimer=null;
-            doSearch();
-            if(s.total>0)toast(`轨迹查询完成: 成功 ${s.ok}，失败 ${s.errors}`,'success');
+          const r=await apiFetch('/api/parcels/track_status');const s=await r.json();
+          if(s.running){trackingProgress.value=`正在查询轨迹 (${s.done}/${s.total})...`;doSearch();}
+          else{
+            trackingProgress.value='';queryStartedAt.value='';_queryingMap.value={};clearInterval(_pollTimer);_pollTimer=null;doSearch();
+            if(s.total>0){
+              if(_accumulatedBase.value){
+                const mergedOk=_accumulatedBase.value.ok+s.ok;
+                lastTrackResult.value={total:_accumulatedBase.value.total,ok:mergedOk,errors:_accumulatedBase.value.total-mergedOk,failed_numbers:s.failed_numbers||[]};
+                _accumulatedBase.value=null;
+              }else{
+                lastTrackResult.value={total:s.total,ok:s.ok,errors:s.errors,failed_numbers:s.failed_numbers||[]};
+              }
+            }
           }
-        }catch(e){console.error(e)}
+        }catch(e){}
       },5000);
+    };
+
+    const retryFailed=async()=>{
+      if(!lastTrackResult.value||!lastTrackResult.value.failed_numbers||!lastTrackResult.value.failed_numbers.length)return;
+      const nums=[...lastTrackResult.value.failed_numbers];
+      const base={total:lastTrackResult.value.total,ok:lastTrackResult.value.ok};
+      lastTrackResult.value=null;
+      trackingProgress.value='正在重试失败单号...';
+      _queryingMap.value=Object.fromEntries(nums.map(n=>[n,1]));
+      try{
+        const r=await apiFetch('/api/parcels/refresh',{method:'POST',body:JSON.stringify({tracking_numbers:nums})});
+        if(r.status===402){const j=await r.json();toast(`点数不足: 余额${j.balance}，需要${j.cost}点`,'error');trackingProgress.value='';_queryingMap.value={};return;}
+        queryStartedAt.value=new Date().toISOString().substring(0,19);
+        doSearch();_startTrackPoll();
+        _accumulatedBase.value=base;
+      }catch(e){trackingProgress.value='';_queryingMap.value={};toast('重试失败: '+e.message,'error');}
     };
 
     const _buildFilterParams=()=>{
@@ -830,31 +1069,33 @@ const app=createApp({
       if(filters.remarkText.trim())params.set('remark',filters.remarkText.trim());
       return params;
     };
+
     const doTrackAll=async()=>{
       if(trackingProgress.value)return;
+      lastTrackResult.value=null;
       trackingProgress.value='正在准备查询...';
       try{
         const inputLines=filters.trackingInput.trim()?filters.trackingInput.trim().split('\n').map(l=>l.trim()).filter(Boolean):[];
         if(inputLines.length){
-          await fetch('/api/parcels/import_merge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_numbers:inputLines})});
+          const mr=await apiFetch('/api/parcels/import_merge',{method:'POST',body:JSON.stringify({tracking_numbers:inputLines})});
+          if(mr.status===402){const mj=await mr.json();toast(`点数不足: 余额${mj.balance}，需要${mj.cost}点`,'error');trackingProgress.value='';_queryingMap.value={};return;}
         }
         const params=_buildFilterParams();
-        const filteredR=await fetch('/api/parcels?'+params);
-        const filteredJ=await filteredR.json();
+        const filteredR=await apiFetch('/api/parcels?'+params);const filteredJ=await filteredR.json();
         const filteredNums=(filteredJ.data||[]).map(p=>p.tracking_number);
-        const allR=await fetch('/api/parcels?page=1&page_size=99999');
-        const allJ=await allR.json();
+        const allR=await apiFetch('/api/parcels?page=1&page_size=99999');const allJ=await allR.json();
         const allNums=(allJ.data||[]).map(p=>p.tracking_number);
-        const seen=new Set();
-        const ordered=[];
+        const seen=new Set();const ordered=[];
         for(const tn of inputLines){if(!seen.has(tn)){seen.add(tn);ordered.push(tn);}}
         for(const tn of filteredNums){if(!seen.has(tn)){seen.add(tn);ordered.push(tn);}}
         for(const tn of allNums){if(!seen.has(tn)){seen.add(tn);ordered.push(tn);}}
         if(!ordered.length){trackingProgress.value='';toast('无单号可查询','info');return;}
-        await fetch('/api/parcels/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_numbers:ordered})});
-        doSearch();
-        _startTrackPoll();
-      }catch(e){trackingProgress.value='';toast('查询失败: '+e.message,'error')}
+        _queryingMap.value=Object.fromEntries(ordered.map(n=>[n,1]));
+        const rr=await apiFetch('/api/parcels/refresh',{method:'POST',body:JSON.stringify({tracking_numbers:ordered})});
+        if(rr.status===402){const rj=await rr.json();toast(`点数不足: 余额${rj.balance}，需要${rj.cost}点`,'error');trackingProgress.value='';_queryingMap.value={};return;}
+        queryStartedAt.value=new Date().toISOString().substring(0,19);
+        doSearch();_startTrackPoll();
+      }catch(e){trackingProgress.value='';_queryingMap.value={};toast('查询失败: '+e.message,'error')}
     };
 
     const doImport=async()=>{
@@ -862,26 +1103,27 @@ const app=createApp({
       if(!lines.length)return;
       importing.value=true;
       try{
-        const r=await fetch('/api/parcels/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_numbers:lines})});
+        const r=await apiFetch('/api/parcels/import',{method:'POST',body:JSON.stringify({tracking_numbers:lines})});
         const j=await r.json();
-        toast(`已导入 ${j.added} 条，正在后台查询轨迹...`,'info');
-        importText.value='';showImport.value=false;
+        if(r.status===402){toast(`点数不足: 余额${j.balance}，需要${j.cost}点`,'error');importing.value=false;return;}
+        if(!r.ok){toast(j.error||'导入失败','error');importing.value=false;return;}
+        toast(`已导入 ${j.added} 条（消耗 ${j.deducted||0} 点），正在后台查询轨迹...`,'info');
+        importText.value='';importEstimate.value=null;showImport.value=false;
         sidebarActive.value='全部';filters.mainStatus=[];page.value=1;
-        doSearch();
-        _startTrackPoll();
+        _queryingMap.value=Object.fromEntries(lines.map(n=>[n,1]));
+        queryStartedAt.value=new Date().toISOString().substring(0,19);
+        doSearch();_startTrackPoll();
       }catch(e){toast('导入失败: '+e.message,'error')}
       importing.value=false;
     };
 
     const doExport=async()=>{
       exporting.value=true;
-      const tns=selected.value.size?[...selected.value]:[];
-      const cols=[...exportCols.value];
+      const tns=selected.value.size?[...selected.value]:[];const cols=[...exportCols.value];
       try{
-        const r=await fetch('/api/parcels/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_numbers:tns,columns:cols})});
+        const r=await apiFetch('/api/parcels/export',{method:'POST',body:JSON.stringify({tracking_numbers:tns,columns:cols})});
         if(!r.ok)throw new Error(await r.text());
-        const blob=await r.blob();
-        const url=URL.createObjectURL(blob);
+        const blob=await r.blob();const url=URL.createObjectURL(blob);
         const a=document.createElement('a');a.href=url;a.download='parcels_export.xlsx';a.click();
         URL.revokeObjectURL(url);toast('导出成功','success');showExport.value=false;
       }catch(e){toast('导出失败: '+e.message,'error')}
@@ -891,39 +1133,53 @@ const app=createApp({
     const batchDelete=async()=>{
       if(!selected.value.size||!confirm(`确定删除 ${selected.value.size} 条记录？`))return;
       try{
-        const r=await fetch('/api/parcels/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_numbers:[...selected.value]})});
-        const j=await r.json();toast(`已删除 ${j.deleted} 条`,'success');doSearch();
+        const r=await apiFetch('/api/parcels/delete',{method:'POST',body:JSON.stringify({tracking_numbers:[...selected.value]})});
+        const j=await r.json();toast(`已删除 ${j.deleted} 条`,'success');selected.value=new Set();doSearch();
       }catch(e){toast('删除失败','error')}
     };
 
     const batchRefresh=async()=>{
-      if(!selected.value.size)return;
-      refreshing.value=true;toast('正在获取轨迹，请稍候...','info');
+      if(!selected.value.size||trackingProgress.value)return;
+      const nums=[...selected.value];
+      refreshing.value=true;
+      trackingProgress.value='正在准备查询...';
+      lastTrackResult.value=null;
+      _queryingMap.value=Object.fromEntries(nums.map(n=>[n,1]));
       try{
-        const r=await fetch('/api/parcels/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tracking_numbers:[...selected.value]})});
-        const j=await r.json();toast(`轨迹刷新完成: 成功 ${j.refreshed}，失败 ${j.errors}`,'success');doSearch();
-      }catch(e){toast('刷新失败: '+e.message,'error')}
+        const r=await apiFetch('/api/parcels/refresh',{method:'POST',body:JSON.stringify({tracking_numbers:nums})});
+        const j=await r.json();
+        if(r.status===402){toast(`点数不足: 余额${j.balance}，需要${j.cost}点`,'error');refreshing.value=false;trackingProgress.value='';_queryingMap.value={};return;}
+        queryStartedAt.value=new Date().toISOString().substring(0,19);
+        doSearch();_startTrackPoll();
+      }catch(e){toast('刷新失败: '+e.message,'error');trackingProgress.value='';_queryingMap.value={};}
       refreshing.value=false;
     };
 
-    // close date panel on outside click
     watch(filters,()=>debouncedSearch(),{deep:true});
+    watch(showImport,v=>{if(v)importEstimate.value=null;});
 
     onMounted(()=>{
-      document.addEventListener('click',e=>{if(activeDatePanel.value&&!e.target.closest('.date-range-wrap'))activeDatePanel.value='';});
+      document.addEventListener('click',e=>{
+        if(activeDatePanel.value&&!e.target.closest('.date-range-wrap'))activeDatePanel.value='';
+        if(userMenuOpen.value&&!e.target.closest('.user-menu'))userMenuOpen.value=false;
+      });
       const now=new Date();calBase.value=new Date(now.getFullYear(),now.getMonth(),1);
-      doSearch();
+      if(isLoggedIn.value){refreshUserInfo();doSearch();loadPlans();}
     });
 
     return{
-      mainStatusList,subStatusList,countryList,exportColOptions,statusColor,
+      mainStatusList,countryList,exportColOptions,statusColor,
+      isLoggedIn,isRegister,authForm,authError,authLoading,userInfo,userMenuOpen,doAuth,doLogout,goAdmin,
+      showChangePw,changePwForm,doChangePw,
+      showRecharge,rechargePlans,selectedPlan,payMethod,rechargeOrder,doRecharge,
+      showTxHistory,txList,txPage,txTotalPages,txTypeLabel,loadTxHistory,
       sidebarCollapsed,menuOpen,sidebarActive,stats,
       filters,sortField,sortOrder,page,pageSize,jumpPage,
       parcels,totalCount,totalPages,loading,selected,refreshing,
       activeDatePanel,calBase,calLeftTitle,calRightTitle,calLeftDays,calRightDays,
       calMonth,calDayClass,onCalClick,shippedRangeText,deliveredRangeText,openDatePanel,clearDateRange,setDateShortcut2,
       toasts,toast,
-      showImport,importText,importing,importCount,trackingProgress,
+      showImport,importText,importing,importCount,importEstimate,checkImportCost,trackingProgress,queryStartedAt,isQuerying,lastTrackResult,trackResultPct,retryFailed,
       showExport,exportCols,exporting,exportAllCols,toggleExportAll,toggleExportCol,
       overlayMD,remarkModal,editRemark,saveRemark,
       allChecked,toggleAll,toggleSelect,visiblePages,
