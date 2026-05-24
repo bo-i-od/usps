@@ -199,15 +199,19 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
     except Exception as e:
         print(f"  [bg] error: {e}")
     finally:
+        with _track_lock:
+            stale = _is_stale()
         try:
-            if browser_mode == BROWSER_MODE_BIT:
+            if stale and browser_mode == BROWSER_MODE_BIT:
+                print(f"  [bg] gen={my_gen} stale, skipping Bit browser close (reused by new session)")
+            elif browser_mode == BROWSER_MODE_BIT:
                 cleanup_and_close_bit(driver, bit_browser_id)
             else:
                 driver.quit()
         except Exception:
             pass
         with _track_lock:
-            if not _is_stale():
+            if not stale:
                 state["running"] = False
             else:
                 print(f"  [bg] gen={my_gen} stale, not clearing running state")
