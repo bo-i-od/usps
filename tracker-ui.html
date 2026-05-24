@@ -1047,9 +1047,9 @@ const app=createApp({
       _pollTimer=setInterval(async()=>{
         try{
           const r=await apiFetch('/api/parcels/track_status');const s=await r.json();
-          if(s.running){if(!isCancelling.value)trackingProgress.value=`正在查询轨迹 (${s.done}/${s.total})...`;await doSearch();}
+          if(s.running){trackingProgress.value=`正在查询轨迹 (${s.done}/${s.total})...`;await doSearch();}
           else{
-            isCancelling.value=false;trackingProgress.value='';queryStartedAt.value='';_queryingMap.value={};clearInterval(_pollTimer);_pollTimer=null;doSearch();
+            trackingProgress.value='';queryStartedAt.value='';_queryingMap.value={};clearInterval(_pollTimer);_pollTimer=null;doSearch();
             if(s.total>0){
               if(_accumulatedBase.value){
                 const mergedOk=_accumulatedBase.value.ok+s.ok;
@@ -1083,10 +1083,20 @@ const app=createApp({
     const isCancelling=ref(false);
     const cancelTracking=async()=>{
       try{
-        await apiFetch('/api/parcels/track_cancel',{method:'POST'});
+        const cr=await apiFetch('/api/parcels/track_cancel',{method:'POST'});
+        if(!cr.ok){toast('取消失败','error');return;}
         isCancelling.value=true;
         trackingProgress.value='正在取消...';
-      }catch(e){toast('取消失败: '+e.message,'error')}
+        if(_pollTimer){clearInterval(_pollTimer);_pollTimer=null;}
+        const sr=await apiFetch('/api/parcels/track_status');const s=await sr.json();
+        const failedCount=s.total-s.ok;
+        isCancelling.value=false;
+        trackingProgress.value='';queryStartedAt.value='';_queryingMap.value={};
+        if(s.total>0){
+          lastTrackResult.value={total:s.total,ok:s.ok,errors:failedCount,failed_numbers:s.failed_numbers||[]};
+        }
+        doSearch();
+      }catch(e){toast('取消失败: '+e.message,'error');isCancelling.value=false;}
     };
 
     const _buildFilterParams=()=>{
@@ -1190,13 +1200,24 @@ const app=createApp({
     watch(filters,()=>debouncedSearch(),{deep:true});
     watch(showImport,v=>{if(v)importEstimate.value=null;});
 
+    const _resumeTrackingIfActive=async()=>{
+      try{
+        const r=await apiFetch('/api/parcels/track_status');const s=await r.json();
+        if(s.running){
+          trackingProgress.value=`正在查询轨迹 (${s.done}/${s.total})...`;
+          queryStartedAt.value=new Date().toISOString().substring(0,19);
+          _startTrackPoll();
+        }
+      }catch(e){}
+    };
+
     onMounted(()=>{
       document.addEventListener('click',e=>{
         if(activeDatePanel.value&&!e.target.closest('.date-range-wrap'))activeDatePanel.value='';
         if(userMenuOpen.value&&!e.target.closest('.user-menu'))userMenuOpen.value=false;
       });
       const now=new Date();calBase.value=new Date(now.getFullYear(),now.getMonth(),1);
-      if(isLoggedIn.value){refreshUserInfo();doSearch();loadPlans();}
+      if(isLoggedIn.value){refreshUserInfo();doSearch();loadPlans();_resumeTrackingIfActive();}
     });
 
     return{
