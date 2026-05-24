@@ -17,7 +17,7 @@ from usps_direct_tracker import (
     get_webdriver, get_webdriver_bit, track_batch,
     BATCH_SIZE, MAX_RETRY, BATCH_TIMEOUT,
     BROWSER_MODE_LOCAL, BROWSER_MODE_BIT,
-    _bit_close_browser,
+    cleanup_and_close_bit,
 )
 
 BATCH_INTERVAL = 5
@@ -158,7 +158,7 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
     finally:
         try:
             if browser_mode == BROWSER_MODE_BIT:
-                _bit_close_browser(bit_browser_id)
+                cleanup_and_close_bit(driver, bit_browser_id)
             else:
                 driver.quit()
         except Exception:

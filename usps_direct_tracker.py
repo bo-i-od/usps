@@ -60,6 +60,21 @@ def _bit_close_browser(browser_id: str):
         print(f"    -> Warning: failed to close Bit browser: {e}")
 
 
+def cleanup_and_close_bit(driver, browser_id: str):
+    """关闭所有页签后再关闭 Bit 浏览器窗口，确保无残留"""
+    try:
+        handles = driver.window_handles
+        if handles:
+            for h in handles[1:]:
+                driver.switch_to.window(h)
+                driver.close()
+            driver.switch_to.window(handles[0])
+            driver.get("about:blank")
+    except Exception as e:
+        print(f"    -> Tab cleanup before close warning: {e}")
+    _bit_close_browser(browser_id)
+
+
 BULK_TRACKING_URL = (
     "https://tools.usps.com/go/TrackConfirmAction"
     "?tRef=fullpage&tLc={count}&text28777=&tLabels={labels}&tABt=false"
@@ -750,7 +765,7 @@ def track_bulk(
                 }
     finally:
         if browser_mode == BROWSER_MODE_BIT:
-            _bit_close_browser(bit_browser_id)
+            cleanup_and_close_bit(driver, bit_browser_id)
         else:
             driver.quit()
 
