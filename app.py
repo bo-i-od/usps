@@ -167,13 +167,14 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
                     time.sleep(BATCH_INTERVAL)
             retry_queue = next_retry
 
-        if retry_queue:
-            print(f"  [bg] {len(retry_queue)} still failed")
-            fail_results = [{"tracking_number": tn, "error": "Failed after retries", "data": None} for tn in retry_queue]
-            parcel_store.apply_track_results_for_user(user_id, fail_results)
+        if not state["cancel_requested"]:
+            if retry_queue:
+                print(f"  [bg] {len(retry_queue)} still failed")
+                fail_results = [{"tracking_number": tn, "error": "Failed after retries", "data": None} for tn in retry_queue]
+                parcel_store.apply_track_results_for_user(user_id, fail_results)
 
-        with _track_lock:
-            state["failed_numbers"] = list(retry_queue)
+            with _track_lock:
+                state["failed_numbers"] = list(retry_queue)
 
     except Exception as e:
         print(f"  [bg] error: {e}")
