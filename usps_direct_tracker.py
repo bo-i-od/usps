@@ -34,11 +34,15 @@ BIT_API_URL = "http://127.0.0.1:54345"
 BIT_HEADERS = {"Content-Type": "application/json"}
 
 
-def _bit_open_browser(browser_id: str) -> dict:
+def _bit_open_browser(browser_id: str, headless: bool = True) -> dict:
     """打开 Bit 浏览器窗口，返回含 driver path 和 debugger address 的 response"""
+    payload = {"id": browser_id}
+    if headless:
+        payload["args"] = ["--headless=new"]
+        payload["loadExtensions"] = False
     res = requests.post(
         f"{BIT_API_URL}/browser/open",
-        data=json.dumps({"id": browser_id}),
+        data=json.dumps(payload),
         headers=BIT_HEADERS,
         timeout=30,
     ).json()
