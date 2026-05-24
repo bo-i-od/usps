@@ -178,7 +178,7 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
 .track-result-pct{font-size:14px;font-weight:700;flex-shrink:0}
 .track-result-close{margin-left:auto;background:none;border:none;cursor:pointer;color:#999;font-size:18px;padding:0 4px;flex-shrink:0}
 .track-result-close:hover{color:var(--color-danger)}
-.track-cancel-btn{background:none;border:none;cursor:pointer;color:#bbb;font-size:15px;font-weight:400;padding:0;line-height:1;margin-left:4px;transition:color .15s}
+.track-cancel-btn{background:none;border:none;cursor:pointer;color:#bbb;font-size:15px;font-weight:400;padding:0;line-height:1;margin-left:4px;vertical-align:middle;transition:color .15s}
 .track-cancel-btn:hover{color:var(--color-danger)}
 @keyframes trackSlideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
 
@@ -1047,9 +1047,9 @@ const app=createApp({
       _pollTimer=setInterval(async()=>{
         try{
           const r=await apiFetch('/api/parcels/track_status');const s=await r.json();
-          if(s.running){trackingProgress.value=`正在查询轨迹 (${s.done}/${s.total})...`;await doSearch();}
+          if(s.running){if(!_cancelling.value)trackingProgress.value=`正在查询轨迹 (${s.done}/${s.total})...`;await doSearch();}
           else{
-            trackingProgress.value='';queryStartedAt.value='';_queryingMap.value={};clearInterval(_pollTimer);_pollTimer=null;doSearch();
+            _cancelling.value=false;trackingProgress.value='';queryStartedAt.value='';_queryingMap.value={};clearInterval(_pollTimer);_pollTimer=null;doSearch();
             if(s.total>0){
               if(_accumulatedBase.value){
                 const mergedOk=_accumulatedBase.value.ok+s.ok;
@@ -1080,9 +1080,11 @@ const app=createApp({
       }catch(e){trackingProgress.value='';_queryingMap.value={};toast('重试失败: '+e.message,'error');}
     };
 
+    const _cancelling=ref(false);
     const cancelTracking=async()=>{
       try{
         await apiFetch('/api/parcels/track_cancel',{method:'POST'});
+        _cancelling.value=true;
         trackingProgress.value='正在取消...';
       }catch(e){toast('取消失败: '+e.message,'error')}
     };

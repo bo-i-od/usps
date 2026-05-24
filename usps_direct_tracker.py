@@ -34,12 +34,14 @@ BIT_API_URL = "http://127.0.0.1:54345"
 BIT_HEADERS = {"Content-Type": "application/json"}
 
 
-def _bit_open_browser(browser_id: str, headless: bool = True) -> dict:
-    """打开 Bit 浏览器窗口，返回含 driver path 和 debugger address 的 response"""
-    payload = {"id": browser_id}
+def _bit_open_browser(browser_id: str, headless: bool = False) -> dict:
+    """打开 Bit 浏览器窗口，返回含 driver path 和 debugger address 的 response
+
+    headless: Bit 浏览器指纹机制可能不兼容无头模式，默认关闭
+    """
+    payload = {"id": browser_id, "loadExtensions": False}
     if headless:
         payload["args"] = ["--headless=new"]
-        payload["loadExtensions"] = False
     res = requests.post(
         f"{BIT_API_URL}/browser/open",
         data=json.dumps(payload),
@@ -730,7 +732,7 @@ def track_bulk(
             ]
             next_retry_queue: List[str] = []
 
-            retry_timeout = int(BATCH_TIMEOUT * (1.5 ** attempt))
+            retry_timeout = int(BATCH_TIMEOUT * (1 + 0.5 * attempt))
             print(f"  Retry timeout: {retry_timeout}s")
 
             for bi, batch in enumerate(retry_batches):

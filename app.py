@@ -145,7 +145,7 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
                     state.update(done=total, errors=total - ok_count)
                     retry_queue = []
                     break
-            retry_timeout = int(BATCH_TIMEOUT * (1.5 ** attempt))
+            retry_timeout = int(BATCH_TIMEOUT * (1 + 0.5 * attempt))
             print(f"  [bg] Retry {attempt}/{MAX_RETRY} — {len(retry_queue)} numbers, timeout {retry_timeout}s")
             retry_batches = [retry_queue[i:i + BATCH_SIZE] for i in range(0, len(retry_queue), BATCH_SIZE)]
             next_retry = []
