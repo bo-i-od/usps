@@ -1027,7 +1027,12 @@ const app=createApp({
     const trackingProgress=ref('');
     const queryStartedAt=ref('');
     const _queryingMap=ref({});
-    const isQuerying=p=>trackingProgress.value&&(p.tracking_number in _queryingMap.value);
+    const isQuerying=p=>{
+      if(!trackingProgress.value)return false;
+      if(!(p.tracking_number in _queryingMap.value))return false;
+      if(queryStartedAt.value&&p.last_fetched_at&&p.last_fetched_at.replace('T',' ')>=queryStartedAt.value)return false;
+      return true;
+    };
     const lastTrackResult=ref(null);
     const _accumulatedBase=ref(null);
     const trackResultPct=computed(()=>{if(!lastTrackResult.value||!lastTrackResult.value.total)return 0;return Math.round(lastTrackResult.value.ok/lastTrackResult.value.total*100)});
@@ -1040,7 +1045,7 @@ const app=createApp({
       _pollTimer=setInterval(async()=>{
         try{
           const r=await apiFetch('/api/parcels/track_status');const s=await r.json();
-          if(s.running){trackingProgress.value=`正在查询轨迹 (${s.done}/${s.total})...`;doSearch();}
+          if(s.running){trackingProgress.value=`正在查询轨迹 (${s.done}/${s.total})...`;await doSearch();}
           else{
             trackingProgress.value='';queryStartedAt.value='';_queryingMap.value={};clearInterval(_pollTimer);_pollTimer=null;doSearch();
             if(s.total>0){
@@ -1054,7 +1059,7 @@ const app=createApp({
             }
           }
         }catch(e){}
-      },5000);
+      },3000);
     };
 
     const retryFailed=async()=>{

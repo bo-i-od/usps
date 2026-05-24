@@ -470,9 +470,27 @@ def get_webdriver_bit(browser_id: str):
     driver.set_page_load_timeout(60)
     driver.implicitly_wait(10)
 
+    _cleanup_bit_tabs(driver)
+
     init_elapsed = time.time() - init_start
     print(f"    -> Bit browser connected in {init_elapsed:.2f}s!")
     return driver
+
+
+def _cleanup_bit_tabs(driver):
+    """关闭 Bit 浏览器中残留的多余页签，只保留一个干净的空白页"""
+    try:
+        handles = driver.window_handles
+        if len(handles) > 1:
+            print(f"    -> Cleaning up {len(handles) - 1} leftover tab(s)...")
+            main_handle = handles[0]
+            for h in handles[1:]:
+                driver.switch_to.window(h)
+                driver.close()
+            driver.switch_to.window(main_handle)
+        driver.get("about:blank")
+    except Exception as e:
+        print(f"    -> Tab cleanup warning: {e}")
 
 
 def _parse_container(container) -> dict:
@@ -554,6 +572,8 @@ def track_batch(driver, batch: List[str], timeout: int = BATCH_TIMEOUT) -> List[
     labels = "%2C".join(batch) + "%2C"
     url = BULK_TRACKING_URL.format(labels=labels, count=len(batch))
 
+    original_handle = driver.current_window_handle
+
     try:
         driver.get(url)
 
@@ -570,6 +590,34 @@ def track_batch(driver, batch: List[str], timeout: int = BATCH_TIMEOUT) -> List[
 
         time.sleep(1)
 
+        # USPS 页面可能通过 JS 打开新页签，需要切回并清理
+        handles = driver.window_handles
+        if len(handles) > 1:
+            for h in handles:
+                if h != original_handle:
+                    driver.switch_to.window(h)
+                    try:
+                        html = driver.page_source
+                    except Exception:
+                        html = ""
+                    if "track-bar-container" in html:
+                        result = _parse_bulk_html(html, batch)
+                        for extra in handles:
+                            if extra != h:
+                                driver.switch_to.window(extra)
+                                driver.close()
+                        driver.switch_to.window(h)
+                        return result
+            driver.switch_to.window(original_handle)
+            for h in handles:
+                if h != original_handle:
+                    try:
+                        driver.switch_to.window(h)
+                        driver.close()
+                    except Exception:
+                        pass
+            driver.switch_to.window(original_handle)
+
         html = driver.page_source
         if "Akamai" in html or len(html) < 500:
             return [
@@ -580,6 +628,11 @@ def track_batch(driver, batch: List[str], timeout: int = BATCH_TIMEOUT) -> List[
         return _parse_bulk_html(html, batch)
 
     except Exception as e:
+        try:
+            if driver.current_window_handle != original_handle:
+                driver.switch_to.window(original_handle)
+        except Exception:
+            pass
         return [
             {"tracking_number": tn, "error": str(e), "data": None}
             for tn in batch
