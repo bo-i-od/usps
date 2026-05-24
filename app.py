@@ -485,8 +485,18 @@ def api_parcels_refresh():
     user_id = g.current_user["id"]
     state = _get_track_state(user_id)
     with _track_lock:
-        if state["running"]:
+        if state["running"] and not state["cancel_requested"]:
             return jsonify({"error": "Tracking already in progress"}), 409
+
+    for _ in range(50):
+        with _track_lock:
+            if not state["running"]:
+                break
+        time.sleep(0.1)
+    else:
+        with _track_lock:
+            if state["running"]:
+                return jsonify({"error": "Previous tracking still stopping"}), 409
 
     data = request.get_json(force=True)
     nums = data.get("tracking_numbers", [])

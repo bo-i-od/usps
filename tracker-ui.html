@@ -1074,6 +1074,7 @@ const app=createApp({
       try{
         const r=await apiFetch('/api/parcels/refresh',{method:'POST',body:JSON.stringify(_trackBody({tracking_numbers:nums}))});
         if(r.status===402){const j=await r.json();toast(`点数不足: 余额${j.balance}，需要${j.cost}点`,'error');trackingProgress.value='';_queryingMap.value={};return;}
+        if(!r.ok){const j=await r.json();toast(j.error||'重试启动失败','error');trackingProgress.value='';_queryingMap.value={};return;}
         queryStartedAt.value=new Date().toISOString().substring(0,19);
         doSearch();_startTrackPoll();
         _accumulatedBase.value=base;
@@ -1135,6 +1136,7 @@ const app=createApp({
         _queryingMap.value=Object.fromEntries(ordered.map(n=>[n,1]));
         const rr=await apiFetch('/api/parcels/refresh',{method:'POST',body:JSON.stringify(_trackBody({tracking_numbers:ordered}))});
         if(rr.status===402){const rj=await rr.json();toast(`点数不足: 余额${rj.balance}，需要${rj.cost}点`,'error');trackingProgress.value='';_queryingMap.value={};return;}
+        if(!rr.ok){const rj=await rr.json();toast(rj.error||'查询启动失败','error');trackingProgress.value='';_queryingMap.value={};return;}
         queryStartedAt.value=new Date().toISOString().substring(0,19);
         doSearch();_startTrackPoll();
       }catch(e){trackingProgress.value='';_queryingMap.value={};toast('查询失败: '+e.message,'error')}
@@ -1191,6 +1193,7 @@ const app=createApp({
         const r=await apiFetch('/api/parcels/refresh',{method:'POST',body:JSON.stringify(_trackBody({tracking_numbers:nums}))});
         const j=await r.json();
         if(r.status===402){toast(`点数不足: 余额${j.balance}，需要${j.cost}点`,'error');refreshing.value=false;trackingProgress.value='';_queryingMap.value={};return;}
+        if(!r.ok){toast(j.error||'查询启动失败','error');refreshing.value=false;trackingProgress.value='';_queryingMap.value={};return;}
         queryStartedAt.value=new Date().toISOString().substring(0,19);
         doSearch();_startTrackPoll();
       }catch(e){toast('刷新失败: '+e.message,'error');trackingProgress.value='';_queryingMap.value={};}
