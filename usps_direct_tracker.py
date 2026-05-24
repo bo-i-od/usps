@@ -1,9 +1,21 @@
+"""
+USPS 直接追踪器 - 使用 Selenium 直接访问 USPS 网站
+自动下载 ChromeDriver，兼容国内网络环境
+"""
 import argparse
+import glob
+import io
 import json
 import os
+import re
+import shutil
+import socket
+import subprocess
 import time
+import zipfile
 from typing import List
 
+import requests
 from selectolax.lexbor import LexborHTMLParser
 
 
@@ -16,19 +28,327 @@ BULK_TRACKING_URL = (
 )
 
 
+# ─── 代理检测 ──────────────────────────────────────────────────
+
+PROXY_PORTS = [
+    ("http", 7890),   # Clash
+    ("http", 7897),   # Clash Verge
+    ("http", 10809),  # V2RayN HTTP
+    ("socks5", 7891), # Clash SOCKS5
+    ("socks5", 10808),# V2RayN SOCKS5
+    ("http", 1080),
+    ("http", 8118),   # Privoxy
+    ("socks5", 1081),
+    ("http", 2080),
+    ("http", 9050),   # Tor
+]
+
+
+def _detect_proxy():
+    """自动检测本地代理"""
+    for env_var in ["HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy", "ALL_PROXY", "all_proxy"]:
+        val = os.environ.get(env_var, "").strip()
+        if val:
+            return val
+    for proto, port in PROXY_PORTS:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+                return f"{proto}://127.0.0.1:{port}"
+        except (socket.timeout, ConnectionRefusedError, OSError):
+            continue
+    return None
+
+
+def _make_proxies(proxy_url):
+    if not proxy_url:
+        return None
+    if proxy_url.startswith("socks"):
+        try:
+            import socks as _  # noqa
+        except ImportError:
+            return None
+    return {"http": proxy_url, "https": proxy_url}
+
+
+# ─── Chrome 版本检测 ───────────────────────────────────────────
+
+_chrome_version_cache = None
+
+
+def _get_chrome_version():
+    """返回 (major, full) 如 (148, "148.0.7778.168")
+
+    不使用 chrome.exe --version, 因为在 Windows 上它会弹出浏览器窗口。
+    改用注册表 + 文件属性来获取版本号。
+    """
+    global _chrome_version_cache
+    if _chrome_version_cache is not None:
+        return _chrome_version_cache
+
+    for reg_key in [
+        r"HKLM\SOFTWARE\Google\Chrome\BLBeacon",
+        r"HKLM\SOFTWARE\WOW6432Node\Google\Chrome\BLBeacon",
+        r"HKCU\SOFTWARE\Google\Chrome\BLBeacon",
+    ]:
+        try:
+            out = subprocess.check_output(
+                ["reg", "query", reg_key, "/v", "version"],
+                text=True, timeout=5,
+                stderr=subprocess.DEVNULL,
+            )
+            m = re.search(r"(\d+\.\d+\.\d+\.\d+)", out)
+            if m:
+                full = m.group(1)
+                _chrome_version_cache = (int(full.split(".")[0]), full)
+                return _chrome_version_cache
+        except Exception:
+            pass
+
+    candidates = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            try:
+                import ctypes
+                size = ctypes.windll.version.GetFileVersionInfoSizeW(path, None)
+                if size:
+                    buf = ctypes.create_string_buffer(size)
+                    ctypes.windll.version.GetFileVersionInfoW(path, None, size, buf)
+                    buf_ptr = ctypes.c_void_p()
+                    res_len = ctypes.c_uint()
+                    if ctypes.windll.version.VerQueryValueW(
+                        buf, r"\VarFileInfo\Translation",
+                        ctypes.byref(buf_ptr), ctypes.byref(res_len)
+                    ):
+                        lang_codepage = ctypes.cast(buf_ptr, ctypes.POINTER(ctypes.c_uint32))[0]
+                        lang_id = lang_codepage & 0xFFFF
+                        codepage = (lang_codepage >> 16) & 0xFFFF
+                        sub_key = f"\\StringFileInfo\\{lang_id:04X}{codepage:04X}\\ProductVersion"
+                        if ctypes.windll.version.VerQueryValueW(
+                            buf, sub_key,
+                            ctypes.byref(buf_ptr), ctypes.byref(res_len)
+                        ):
+                            ver_str = ctypes.cast(buf_ptr, ctypes.c_wchar_p).value
+                            m = re.search(r"(\d+\.\d+\.\d+\.\d+)", ver_str or "")
+                            if m:
+                                full = m.group(1)
+                                _chrome_version_cache = (int(full.split(".")[0]), full)
+                                return _chrome_version_cache
+            except Exception:
+                pass
+
+    _chrome_version_cache = (None, None)
+    return _chrome_version_cache
+
+
+# ─── ChromeDriver 缓存操作 ─────────────────────────────────────
+
+def _find_cached_chromedriver(major_version):
+    """在缓存中递归查找版本匹配的 chromedriver.exe"""
+    cache_roots = [
+        os.path.join(os.path.expanduser("~"), ".cache", "selenium", "chromedriver"),
+        os.path.join(os.path.expanduser("~"), ".wdm", "drivers", "chromedriver"),
+    ]
+    for base in cache_roots:
+        if not os.path.isdir(base):
+            continue
+        for f in glob.glob(os.path.join(base, "**", "chromedriver.exe"), recursive=True):
+            rel = os.path.relpath(os.path.dirname(f), base)
+            m = re.search(r"(\d+)\.", rel)
+            if m and int(m.group(1)) == major_version:
+                return f
+    return None
+
+
+def _nuke_all_chromedriver_cache():
+    """彻底清空所有 chromedriver 缓存目录，防止 SeleniumManager 回退到旧版本"""
+    cache_dirs = [
+        os.path.join(os.path.expanduser("~"), ".cache", "selenium", "chromedriver"),
+        os.path.join(os.path.expanduser("~"), ".wdm", "drivers", "chromedriver"),
+    ]
+    for d in cache_dirs:
+        if os.path.isdir(d):
+            try:
+                shutil.rmtree(d)
+                print(f"    -> Nuked cache: {d}")
+            except Exception as e:
+                print(f"    -> Could not nuke {d}: {e}")
+
+
+# ─── ChromeDriver 下载 ─────────────────────────────────────────
+
+def _try_download(full_version, proxies=None):
+    """尝试从多个源下载 chromedriver, 返回 exe 路径或 None"""
+    for platform in ["win64", "win32"]:
+        url = (
+            f"https://storage.googleapis.com/chrome-for-testing-public/"
+            f"{full_version}/{platform}/chromedriver-{platform}.zip"
+        )
+        try:
+            print(f"    -> Trying storage.googleapis.com/{full_version}/{platform}...")
+            resp = requests.get(url, timeout=60, stream=True, proxies=proxies)
+            if resp.status_code == 200:
+                return _save_chromedriver_zip(resp.content, full_version)
+            print(f"    -> HTTP {resp.status_code}")
+        except Exception as e:
+            print(f"    -> Failed: {e}")
+
+    for platform in ["win64", "win32"]:
+        url = (
+            f"https://edgedl.me.gvt1.com/edgedl/chrome-for-testing/"
+            f"{full_version}/{platform}/chromedriver-{platform}.zip"
+        )
+        try:
+            print(f"    -> Trying edgedl.me.gvt1.com/{full_version}/{platform}...")
+            resp = requests.get(url, timeout=60, stream=True, proxies=proxies)
+            if resp.status_code == 200:
+                return _save_chromedriver_zip(resp.content, full_version)
+            print(f"    -> HTTP {resp.status_code}")
+        except Exception as e:
+            print(f"    -> Failed: {e}")
+
+    try:
+        print("    -> Trying chrome-for-testing index (needs proxy)...")
+        resp = requests.get(
+            "https://googlechromelabs.github.io/chrome-for-testing/"
+            "known-good-versions-with-downloads.json",
+            timeout=20, proxies=proxies,
+        )
+        if resp.status_code == 200:
+            versions = resp.json().get("versions", [])
+            for v in reversed(versions):
+                if v["version"].startswith(f"{full_version.rsplit('.', 1)[0]}."):
+                    downloads = v.get("downloads", {}).get("chromedriver", [])
+                    for d in downloads:
+                        if d.get("platform") in ("win64", "win32"):
+                            dl_url = d["url"]
+                            dl_ver = v["version"]
+                            print(f"    -> Found v{dl_ver}, downloading...")
+                            resp2 = requests.get(dl_url, timeout=120, stream=True, proxies=proxies)
+                            if resp2.status_code == 200:
+                                return _save_chromedriver_zip(resp2.content, dl_ver)
+                    break
+    except Exception as e:
+        print(f"    -> CFT index failed: {e}")
+
+    return None
+
+
+def _save_chromedriver_zip(content, version_str):
+    """将 zip 内容解压到缓存目录, 返回 chromedriver.exe 路径"""
+    target_dir = os.path.join(
+        os.path.expanduser("~"), ".cache", "selenium",
+        "chromedriver", version_str
+    )
+    os.makedirs(target_dir, exist_ok=True)
+    zipfile.ZipFile(io.BytesIO(content)).extractall(target_dir)
+
+    for f in glob.glob(os.path.join(target_dir, "**", "chromedriver.exe"), recursive=True):
+        print(f"    -> Saved chromedriver v{version_str}: {f}")
+        return f
+    return None
+
+
+# ─── ChromeDriver 主解析 ───────────────────────────────────────
+
+def resolve_chromedriver():
+    """按优先级查找或下载版本匹配的 chromedriver"""
+    manual = os.environ.get("CHROMEDRIVER_PATH")
+    if manual and os.path.isfile(manual):
+        print(f"    -> Using CHROMEDRIVER_PATH: {manual}")
+        return manual
+
+    major, full = _get_chrome_version()
+    if major:
+        print(f"    -> Detected Chrome version: {full}")
+    else:
+        print("    -> Could not detect Chrome version")
+
+    if major:
+        cached = _find_cached_chromedriver(major)
+        if cached:
+            print(f"    -> Found matching cached chromedriver: {cached}")
+            return cached
+
+    if major:
+        sys_cd = shutil.which("chromedriver")
+        if sys_cd and os.path.isfile(sys_cd):
+            try:
+                out = subprocess.check_output([sys_cd, "--version"], text=True, timeout=5)
+                m = re.search(r"(\d+)\.", out)
+                if m and int(m.group(1)) == major:
+                    print(f"    -> Found system chromedriver: {sys_cd}")
+                    return sys_cd
+            except Exception:
+                pass
+
+    if major:
+        _nuke_all_chromedriver_cache()
+
+    proxy_url = _detect_proxy()
+    proxies = _make_proxies(proxy_url) if proxy_url else None
+
+    if proxy_url:
+        print(f"    -> Using proxy: {proxy_url}")
+    else:
+        print("    -> No proxy detected, trying direct connections...")
+
+    if major and major >= 115 and full:
+        exe = _try_download(full, proxies)
+        if exe:
+            return exe
+
+    if major and major < 115:
+        print(f"    -> Trying npmmirror (Chrome {major})...")
+        mirror = "https://cdn.npmmirror.com/binaries/chromedriver"
+        try:
+            resp = requests.get(f"{mirror}/LATEST_RELEASE_{major}", timeout=15)
+            if resp.status_code != 200:
+                resp = requests.get(f"{mirror}/LATEST_RELEASE", timeout=15)
+            if resp.status_code == 200:
+                ver = resp.text.strip()
+                if ver.startswith(f"{major}."):
+                    resp2 = requests.get(f"{mirror}/{ver}/chromedriver_win32.zip", timeout=60, stream=True)
+                    if resp2.status_code == 200:
+                        exe = _save_chromedriver_zip(resp2.content, ver)
+                        if exe:
+                            return exe
+        except Exception as e:
+            print(f"    -> npmmirror failed: {e}")
+
+    print("    -> Falling back to SeleniumManager (cache cleared, will attempt fresh download)...")
+    return "__SELENIUM_MANAGER__"
+
+
+# ─── 浏览器初始化 ──────────────────────────────────────────────
+
 def get_webdriver():
     """初始化并返回无头浏览器实例"""
-    import selenium.webdriver as webdriver
+    from selenium import webdriver
     from selenium.webdriver.chrome.options import Options as ChromeOptions
     from selenium.webdriver.chrome.service import Service as ChromeService
-    from webdriver_manager.chrome import ChromeDriverManager
-    # 移除 webdriver_manager 避免网络连不上的报错
 
     print("    -> Setting up Chrome...")
-    init_start = time.time()  # 记录浏览器启动开始时间
+    init_start = time.time()
 
     options = ChromeOptions()
-    options.add_argument("--headless=new")  # 开启无头模式
+    major_ver, _ = _get_chrome_version()
+    options.add_argument("--headless=new")
+    print(f"    -> Using --headless=new (Chrome {major_ver or 'unknown'})")
+
+    _headless_profile = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".chrome-headless-profile")
+    for _lock in ["lockfile", "SingletonLock", "SingletonCookie", "SingletonSocket"]:
+        _lp = os.path.join(_headless_profile, _lock)
+        if os.path.isfile(_lp):
+            try:
+                os.remove(_lp)
+            except Exception:
+                pass
+    options.add_argument(f"--user-data-dir={_headless_profile}")
+    options.add_argument("--disable-gpu")
     options.add_argument(
         "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -36,16 +356,46 @@ def get_webdriver():
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
     options.page_load_strategy = "eager"
+    options.add_argument("--log-level=3")
+    options.add_argument("--silent")
 
-    service = ChromeService(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=options)
+    chromedriver_path = resolve_chromedriver()
+    driver = None
 
-    init_elapsed = time.time() - init_start  # 计算浏览器启动耗时
+    os.environ.setdefault("CHROMIUM_LOG_LEVEL", "3")
+
+    CREATE_NO_WINDOW = 0x08000000
+
+    if chromedriver_path == "__SELENIUM_MANAGER__":
+        try:
+            print("    -> Launching via SeleniumManager...")
+            service = ChromeService()
+            service.creationflags = CREATE_NO_WINDOW
+            service.log_output = subprocess.DEVNULL
+            driver = webdriver.Chrome(service=service, options=options)
+        except Exception as e:
+            print(f"    -> SeleniumManager failed: {e}")
+            raise RuntimeError(
+                "\n    Could not initialize Chrome WebDriver!\n"
+                "    All download methods failed (likely network issue in China).\n"
+                "    Please try one of:\n"
+                "      1. Start your proxy (Clash/V2Ray) and retry\n"
+                "      2. Set env: set HTTPS_PROXY=http://127.0.0.1:7890\n"
+                "      3. Set CHROMEDRIVER_PATH=C:\\path\\to\\chromedriver.exe\n"
+                "      4. Manually download chromedriver from:\n"
+                "         https://googlechromelabs.github.io/chrome-for-testing/\n"
+            )
+    else:
+        service = ChromeService(executable_path=chromedriver_path)
+        service.creationflags = CREATE_NO_WINDOW
+        service.log_output = subprocess.DEVNULL
+        driver = webdriver.Chrome(service=service, options=options)
+
+    init_elapsed = time.time() - init_start
     print(f"    -> Chrome launched successfully in {init_elapsed:.2f}s!")
 
     print("    -> Applying anti-detection scripts...")
