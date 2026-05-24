@@ -1,6 +1,8 @@
 """
 USPS 直接追踪器 - 使用 Selenium 直接访问 USPS 网站
-自动下载 ChromeDriver，兼容国内网络环境
+支持两种浏览器模式:
+  - local: 本地 Chrome 无头模式（默认），自动下载 ChromeDriver
+  - bit:   通过 Bit 浏览器 API 启动窗口，连接 Selenium 操控
 """
 import argparse
 import glob
@@ -13,7 +15,7 @@ import socket
 import subprocess
 import time
 import zipfile
-from typing import List
+from typing import List, Optional
 
 import requests
 from selectolax.lexbor import LexborHTMLParser
@@ -22,6 +24,42 @@ from selectolax.lexbor import LexborHTMLParser
 BATCH_SIZE = 35
 MAX_RETRY = 3
 BATCH_TIMEOUT = 30
+
+BROWSER_MODE_LOCAL = "local"
+BROWSER_MODE_BIT = "bit"
+
+# ─── Bit 浏览器 API ─────────────────────────────────────────────
+
+BIT_API_URL = "http://127.0.0.1:54345"
+BIT_HEADERS = {"Content-Type": "application/json"}
+
+
+def _bit_open_browser(browser_id: str) -> dict:
+    """打开 Bit 浏览器窗口，返回含 driver path 和 debugger address 的 response"""
+    res = requests.post(
+        f"{BIT_API_URL}/browser/open",
+        data=json.dumps({"id": browser_id}),
+        headers=BIT_HEADERS,
+        timeout=30,
+    ).json()
+    if res.get("success") is False:
+        raise RuntimeError(f"Bit browser open failed: {res.get('msg', res)}")
+    return res
+
+
+def _bit_close_browser(browser_id: str):
+    """关闭 Bit 浏览器窗口"""
+    try:
+        requests.post(
+            f"{BIT_API_URL}/browser/close",
+            data=json.dumps({"id": browser_id}),
+            headers=BIT_HEADERS,
+            timeout=10,
+        )
+    except Exception as e:
+        print(f"    -> Warning: failed to close Bit browser: {e}")
+
+
 BULK_TRACKING_URL = (
     "https://tools.usps.com/go/TrackConfirmAction"
     "?tRef=fullpage&tLc={count}&text28777=&tLabels={labels}&tABt=false"
@@ -408,6 +446,35 @@ def get_webdriver():
     return driver
 
 
+def get_webdriver_bit(browser_id: str):
+    """通过 Bit 浏览器 API 打开窗口，返回 Selenium WebDriver 实例"""
+    from selenium import webdriver
+    from selenium.webdriver.chrome.service import Service as ChromeService
+
+    print(f"    -> Opening Bit browser (id={browser_id})...")
+    init_start = time.time()
+
+    res = _bit_open_browser(browser_id)
+    driver_path = res["data"]["driver"]
+    debugger_address = res["data"]["http"]
+    print(f"    -> Bit browser opened, debugger at {debugger_address}")
+
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_experimental_option("debuggerAddress", debugger_address)
+
+    chrome_service = ChromeService(driver_path)
+    CREATE_NO_WINDOW = 0x08000000
+    chrome_service.creationflags = CREATE_NO_WINDOW
+
+    driver = webdriver.Chrome(service=chrome_service, options=chrome_options)
+    driver.set_page_load_timeout(60)
+    driver.implicitly_wait(10)
+
+    init_elapsed = time.time() - init_start
+    print(f"    -> Bit browser connected in {init_elapsed:.2f}s!")
+    return driver
+
+
 def _parse_container(container) -> dict:
     """解析单个 .track-bar-container 中的物流信息"""
     tn_el = container.css_first("span.tracking-number")
@@ -519,8 +586,17 @@ def track_batch(driver, batch: List[str], timeout: int = BATCH_TIMEOUT) -> List[
         ]
 
 
-def track_bulk(tracking_numbers: List[str], max_retry: int = MAX_RETRY) -> List[dict]:
-    """批量追踪: 每次最多 35 个单号, 分批请求, 失败的进入重试队列"""
+def track_bulk(
+    tracking_numbers: List[str],
+    max_retry: int = MAX_RETRY,
+    browser_mode: str = BROWSER_MODE_LOCAL,
+    bit_browser_id: Optional[str] = None,
+) -> List[dict]:
+    """批量追踪: 每次最多 35 个单号, 分批请求, 失败的进入重试队列
+
+    browser_mode: "local" 使用本地无头 Chrome, "bit" 使用 Bit 浏览器
+    bit_browser_id: Bit 浏览器窗口 ID (mode=bit 时必填)
+    """
     results_map = {}
     total = len(tracking_numbers)
     batches = [
@@ -530,8 +606,16 @@ def track_bulk(tracking_numbers: List[str], max_retry: int = MAX_RETRY) -> List[
 
     print(f"  Total: {total} numbers, split into {len(batches)} batch(es) of up to {BATCH_SIZE}")
     print(f"  Max retry: {max_retry}")
-    print("  Initializing browser...")
-    driver = get_webdriver()
+    print(f"  Browser mode: {browser_mode}")
+
+    if browser_mode == BROWSER_MODE_BIT:
+        if not bit_browser_id:
+            raise ValueError("bit_browser_id is required when browser_mode='bit'")
+        print(f"  Initializing Bit browser (id={bit_browser_id})...")
+        driver = get_webdriver_bit(bit_browser_id)
+    else:
+        print("  Initializing local browser...")
+        driver = get_webdriver()
 
     try:
         retry_queue: List[str] = []
@@ -612,7 +696,10 @@ def track_bulk(tracking_numbers: List[str], max_retry: int = MAX_RETRY) -> List[
                     "data": None,
                 }
     finally:
-        driver.quit()
+        if browser_mode == BROWSER_MODE_BIT:
+            _bit_close_browser(bit_browser_id)
+        else:
+            driver.quit()
 
     return [results_map.get(tn, {"tracking_number": tn, "error": "Unknown failure", "data": None})
             for tn in tracking_numbers]
@@ -651,12 +738,23 @@ def load_tracking_numbers(filepath: str) -> List[str]:
 
 
 def main():
-    script_start = time.time()  # 记录整个脚本开始时间
+    script_start = time.time()
 
-    parser = argparse.ArgumentParser(description="USPS Direct Tracker (Pure Selenium)")
+    parser = argparse.ArgumentParser(description="USPS Direct Tracker (Selenium)")
     parser.add_argument("tracking_numbers", nargs="*")
     parser.add_argument("--file", "-f")
     parser.add_argument("--output", "-o")
+    parser.add_argument(
+        "--mode", "-m",
+        choices=[BROWSER_MODE_LOCAL, BROWSER_MODE_BIT],
+        default=BROWSER_MODE_LOCAL,
+        help="浏览器模式: local=本地无头Chrome(默认), bit=Bit浏览器",
+    )
+    parser.add_argument(
+        "--bit-id",
+        default=os.environ.get("BIT_BROWSER_ID", ""),
+        help="Bit 浏览器窗口 ID (mode=bit 时必填，也可通过 BIT_BROWSER_ID 环境变量设置)",
+    )
     args = parser.parse_args()
 
     numbers = list(args.tracking_numbers)
@@ -670,12 +768,19 @@ def main():
     if not numbers:
         parser.error("No tracking numbers provided.")
 
-    # 去重
+    if args.mode == BROWSER_MODE_BIT and not args.bit_id:
+        parser.error("--bit-id is required when --mode=bit (or set BIT_BROWSER_ID env var)")
+
     seen = set()
     numbers = [n for n in numbers if n not in seen and not seen.add(n)]
 
-    print(f"Tracking {len(numbers)} number(s) via USPS (Pure Selenium)...")
-    results = track_bulk(numbers)
+    mode_label = "Bit Browser" if args.mode == BROWSER_MODE_BIT else "Local Chrome"
+    print(f"Tracking {len(numbers)} number(s) via USPS ({mode_label})...")
+    results = track_bulk(
+        numbers,
+        browser_mode=args.mode,
+        bit_browser_id=args.bit_id or None,
+    )
 
     print(chr(10) + "=" * 70)
     print("TRACKING RESULTS")

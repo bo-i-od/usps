@@ -402,13 +402,23 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
       </div>
     </div>
     <div class="filter-row" style="margin-top:10px">
-      <button class="btn btn-primary" @click="doTrackAll" :disabled="!!trackingProgress||totalCount===0">
+      <button class="btn btn-primary" @click="doTrackAll" :disabled="!!trackingProgress||totalCount===0||(browserMode==='bit'&&!bitBrowserId)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         查询全部
       </button>
       <span style="margin-left:8px">找到 <span class="text-count">{{totalCount}}</span> 条</span>
       <span v-if="trackingProgress" style="margin-left:8px;color:var(--color-primary);font-size:12px;display:inline-flex;align-items:center;gap:4px"><span class="dot-spinner dot-spinner-sm"></span>{{trackingProgress}}</span>
       <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-right:8px">
+        <label style="white-space:nowrap;color:var(--color-text-secondary)">浏览器</label>
+        <select v-model="browserMode" style="padding:4px 6px;border:1px solid var(--color-border);border-radius:4px;font-size:12px;background:#fff">
+          <option value="bit">Bit浏览器</option>
+          <option value="local">本地Chrome</option>
+        </select>
+        <template v-if="browserMode==='bit'">
+          <input type="text" v-model="bitBrowserId" placeholder="Bit窗口ID" style="width:130px;padding:4px 6px;border:1px solid var(--color-border);border-radius:4px;font-size:12px;font-family:var(--font-mono)">
+        </template>
+      </div>
       <button class="btn btn-ghost" @click="showImport=true">导入</button>
       <button class="btn btn-ghost" @click="showExport=true">导出</button>
     </div>
@@ -568,7 +578,7 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
     <div class="modal-footer">
       <button class="btn btn-ghost" @click="showImport=false">取消</button>
       <button class="btn btn-ghost" @click="checkImportCost" :disabled="importCount===0||importCount>10000">预估费用</button>
-      <button class="btn btn-primary" @click="doImport" :disabled="importCount===0||importCount>10000||importing">
+      <button class="btn btn-primary" @click="doImport" :disabled="importCount===0||importCount>10000||importing||(browserMode==='bit'&&!bitBrowserId)">
         <span v-if="importing" class="dot-spinner dot-spinner-sm"></span> 开始上传
       </button>
     </div>
@@ -1008,6 +1018,12 @@ const app=createApp({
     const debouncedSearch=()=>{clearTimeout(_filterTimer);_filterTimer=setTimeout(()=>{page.value=1;doSearch()},300)};
     const onSidebarClick=s=>{sidebarActive.value=s;filters.mainStatus=s==='全部'?[]:[s]};
 
+    const browserMode=ref(localStorage.getItem('browser_mode')||'bit');
+    const bitBrowserId=ref(localStorage.getItem('bit_browser_id')||'');
+    watch(browserMode,v=>localStorage.setItem('browser_mode',v));
+    watch(bitBrowserId,v=>localStorage.setItem('bit_browser_id',v));
+    const _trackBody=extra=>({...extra,browser_mode:browserMode.value,...(browserMode.value==='bit'&&bitBrowserId.value?{bit_browser_id:bitBrowserId.value}:{})});
+
     const trackingProgress=ref('');
     const queryStartedAt=ref('');
     const _queryingMap=ref({});
@@ -1049,7 +1065,7 @@ const app=createApp({
       trackingProgress.value='正在重试失败单号...';
       _queryingMap.value=Object.fromEntries(nums.map(n=>[n,1]));
       try{
-        const r=await apiFetch('/api/parcels/refresh',{method:'POST',body:JSON.stringify({tracking_numbers:nums})});
+        const r=await apiFetch('/api/parcels/refresh',{method:'POST',body:JSON.stringify(_trackBody({tracking_numbers:nums}))});
         if(r.status===402){const j=await r.json();toast(`点数不足: 余额${j.balance}，需要${j.cost}点`,'error');trackingProgress.value='';_queryingMap.value={};return;}
         queryStartedAt.value=new Date().toISOString().substring(0,19);
         doSearch();_startTrackPoll();
@@ -1077,7 +1093,7 @@ const app=createApp({
       try{
         const inputLines=filters.trackingInput.trim()?filters.trackingInput.trim().split('\n').map(l=>l.trim()).filter(Boolean):[];
         if(inputLines.length){
-          const mr=await apiFetch('/api/parcels/import_merge',{method:'POST',body:JSON.stringify({tracking_numbers:inputLines})});
+          const mr=await apiFetch('/api/parcels/import_merge',{method:'POST',body:JSON.stringify(_trackBody({tracking_numbers:inputLines}))});
           if(mr.status===402){const mj=await mr.json();toast(`点数不足: 余额${mj.balance}，需要${mj.cost}点`,'error');trackingProgress.value='';_queryingMap.value={};return;}
         }
         const params=_buildFilterParams();
@@ -1091,7 +1107,7 @@ const app=createApp({
         for(const tn of allNums){if(!seen.has(tn)){seen.add(tn);ordered.push(tn);}}
         if(!ordered.length){trackingProgress.value='';toast('无单号可查询','info');return;}
         _queryingMap.value=Object.fromEntries(ordered.map(n=>[n,1]));
-        const rr=await apiFetch('/api/parcels/refresh',{method:'POST',body:JSON.stringify({tracking_numbers:ordered})});
+        const rr=await apiFetch('/api/parcels/refresh',{method:'POST',body:JSON.stringify(_trackBody({tracking_numbers:ordered}))});
         if(rr.status===402){const rj=await rr.json();toast(`点数不足: 余额${rj.balance}，需要${rj.cost}点`,'error');trackingProgress.value='';_queryingMap.value={};return;}
         queryStartedAt.value=new Date().toISOString().substring(0,19);
         doSearch();_startTrackPoll();
@@ -1103,7 +1119,7 @@ const app=createApp({
       if(!lines.length)return;
       importing.value=true;
       try{
-        const r=await apiFetch('/api/parcels/import',{method:'POST',body:JSON.stringify({tracking_numbers:lines})});
+        const r=await apiFetch('/api/parcels/import',{method:'POST',body:JSON.stringify(_trackBody({tracking_numbers:lines}))});
         const j=await r.json();
         if(r.status===402){toast(`点数不足: 余额${j.balance}，需要${j.cost}点`,'error');importing.value=false;return;}
         if(!r.ok){toast(j.error||'导入失败','error');importing.value=false;return;}
@@ -1146,7 +1162,7 @@ const app=createApp({
       lastTrackResult.value=null;
       _queryingMap.value=Object.fromEntries(nums.map(n=>[n,1]));
       try{
-        const r=await apiFetch('/api/parcels/refresh',{method:'POST',body:JSON.stringify({tracking_numbers:nums})});
+        const r=await apiFetch('/api/parcels/refresh',{method:'POST',body:JSON.stringify(_trackBody({tracking_numbers:nums}))});
         const j=await r.json();
         if(r.status===402){toast(`点数不足: 余额${j.balance}，需要${j.cost}点`,'error');refreshing.value=false;trackingProgress.value='';_queryingMap.value={};return;}
         queryStartedAt.value=new Date().toISOString().substring(0,19);
@@ -1179,6 +1195,7 @@ const app=createApp({
       activeDatePanel,calBase,calLeftTitle,calRightTitle,calLeftDays,calRightDays,
       calMonth,calDayClass,onCalClick,shippedRangeText,deliveredRangeText,openDatePanel,clearDateRange,setDateShortcut2,
       toasts,toast,
+      browserMode,bitBrowserId,
       showImport,importText,importing,importCount,importEstimate,checkImportCost,trackingProgress,queryStartedAt,isQuerying,lastTrackResult,trackResultPct,retryFailed,
       showExport,exportCols,exporting,exportAllCols,toggleExportAll,toggleExportCol,
       overlayMD,remarkModal,editRemark,saveRemark,

@@ -1,7 +1,8 @@
 """
 refresh_parcels.py — CLI: 读取 tracking_numbers.txt 或命令行参数，调用 track_bulk 灌库。
 用法:
-    python refresh_parcels.py                      # 读取 tracking_numbers.txt
+    python refresh_parcels.py                      # 读取 tracking_numbers.txt（本地Chrome）
+    python refresh_parcels.py --mode bit --bit-id xxx   # 使用Bit浏览器
     python refresh_parcels.py 9300110990413301433581 9300110990413301436223
 """
 import argparse
@@ -9,7 +10,10 @@ import os
 import sys
 import time
 
-from usps_direct_tracker import track_bulk, load_tracking_numbers
+from usps_direct_tracker import (
+    track_bulk, load_tracking_numbers,
+    BROWSER_MODE_LOCAL, BROWSER_MODE_BIT,
+)
 import parcel_store
 
 
@@ -18,6 +22,17 @@ def main():
     parser.add_argument("tracking_numbers", nargs="*", help="Tracking numbers to refresh")
     parser.add_argument("--file", "-f", help="File with tracking numbers (one per line)")
     parser.add_argument("--import-only", action="store_true", help="Only import, skip tracking")
+    parser.add_argument(
+        "--mode", "-m",
+        choices=[BROWSER_MODE_LOCAL, BROWSER_MODE_BIT],
+        default=BROWSER_MODE_LOCAL,
+        help="浏览器模式: local=本地无头Chrome(默认), bit=Bit浏览器",
+    )
+    parser.add_argument(
+        "--bit-id",
+        default=os.environ.get("BIT_BROWSER_ID", ""),
+        help="Bit 浏览器窗口 ID (mode=bit 时必填)",
+    )
     args = parser.parse_args()
 
     numbers = list(args.tracking_numbers)
@@ -43,9 +58,18 @@ def main():
         print("[Done] Import only mode, skipping tracking.")
         return
 
-    print(f"[2/3] Running track_bulk for {len(numbers)} number(s)...")
+    if args.mode == BROWSER_MODE_BIT and not args.bit_id:
+        print("Error: --bit-id is required when --mode=bit (or set BIT_BROWSER_ID env var)", file=sys.stderr)
+        sys.exit(1)
+
+    mode_label = "Bit Browser" if args.mode == BROWSER_MODE_BIT else "Local Chrome"
+    print(f"[2/3] Running track_bulk for {len(numbers)} number(s) ({mode_label})...")
     start = time.time()
-    results = track_bulk(numbers)
+    results = track_bulk(
+        numbers,
+        browser_mode=args.mode,
+        bit_browser_id=args.bit_id or None,
+    )
     elapsed = time.time() - start
     print(f"       -> Tracking completed in {elapsed:.1f}s")
 

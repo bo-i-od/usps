@@ -13,7 +13,12 @@ from flask import Flask, request, jsonify, send_file, Response, g
 
 import database as db
 import parcel_store
-from usps_direct_tracker import get_webdriver, track_batch, BATCH_SIZE, MAX_RETRY, BATCH_TIMEOUT
+from usps_direct_tracker import (
+    get_webdriver, get_webdriver_bit, track_batch,
+    BATCH_SIZE, MAX_RETRY, BATCH_TIMEOUT,
+    BROWSER_MODE_LOCAL, BROWSER_MODE_BIT,
+    _bit_close_browser,
+)
 
 BATCH_INTERVAL = 5
 
@@ -64,17 +69,22 @@ def admin_required(f):
 
 # ─── Background tracking ───
 
-def _bg_track_incremental(user_id, numbers):
+def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit_browser_id=None):
     state = _get_track_state(user_id)
     total = len(numbers)
     with _track_lock:
         state.update(running=True, total=total, done=0, ok=0, errors=0, failed_numbers=[])
 
     batches = [numbers[i:i + BATCH_SIZE] for i in range(0, total, BATCH_SIZE)]
-    print(f"  [bg] User {user_id}: Total: {total}, {len(batches)} batch(es)")
+    print(f"  [bg] User {user_id}: Total: {total}, {len(batches)} batch(es), mode={browser_mode}")
 
     try:
-        driver = get_webdriver()
+        if browser_mode == BROWSER_MODE_BIT:
+            if not bit_browser_id:
+                raise ValueError("bit_browser_id is required for bit mode")
+            driver = get_webdriver_bit(bit_browser_id)
+        else:
+            driver = get_webdriver()
     except Exception as e:
         print(f"  [bg] Failed to start browser: {e}")
         with _track_lock:
@@ -147,7 +157,10 @@ def _bg_track_incremental(user_id, numbers):
         print(f"  [bg] error: {e}")
     finally:
         try:
-            driver.quit()
+            if browser_mode == BROWSER_MODE_BIT:
+                _bit_close_browser(bit_browser_id)
+            else:
+                driver.quit()
         except Exception:
             pass
         with _track_lock:
@@ -414,7 +427,9 @@ def api_parcels_import():
 
     added = db.clear_and_import(user_id, nums)
 
-    t = threading.Thread(target=_bg_track_incremental, args=(user_id, nums), daemon=True)
+    bmode = data.get("browser_mode", BROWSER_MODE_LOCAL)
+    bit_id = data.get("bit_browser_id") or os.environ.get("BIT_BROWSER_ID")
+    t = threading.Thread(target=_bg_track_incremental, args=(user_id, nums, bmode, bit_id), daemon=True)
     t.start()
 
     return jsonify({"added": added, "total_submitted": len(nums), "tracking_started": True,
@@ -450,7 +465,9 @@ def api_parcels_refresh():
     if not deduct["ok"]:
         return jsonify({"error": "点数不足", "balance": deduct["balance"], "cost": deduct["cost"]}), 402
 
-    t = threading.Thread(target=_bg_track_incremental, args=(user_id, nums), daemon=True)
+    bmode = data.get("browser_mode", BROWSER_MODE_LOCAL)
+    bit_id = data.get("bit_browser_id") or os.environ.get("BIT_BROWSER_ID")
+    t = threading.Thread(target=_bg_track_incremental, args=(user_id, nums, bmode, bit_id), daemon=True)
     t.start()
     return jsonify({"tracking_started": True, "total": len(nums),
                      "deducted": deduct["deducted"], "balance": deduct["balance"]})
