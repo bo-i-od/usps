@@ -1086,15 +1086,14 @@ const app=createApp({
       try{
         const cr=await apiFetch('/api/parcels/track_cancel',{method:'POST'});
         if(!cr.ok){toast('取消失败','error');return;}
+        if(_pollTimer){clearInterval(_pollTimer);_pollTimer=null;}
         isCancelling.value=true;
         trackingProgress.value='正在取消...';
-        if(_pollTimer){clearInterval(_pollTimer);_pollTimer=null;}
         const sr=await apiFetch('/api/parcels/track_status');const s=await sr.json();
-        const failedCount=s.total-s.ok;
         isCancelling.value=false;
         trackingProgress.value='';queryStartedAt.value='';_queryingMap.value={};
         if(s.total>0){
-          lastTrackResult.value={total:s.total,ok:s.ok,errors:failedCount,failed_numbers:s.failed_numbers||[]};
+          lastTrackResult.value={total:s.total,ok:s.ok,errors:s.total-s.ok,failed_numbers:[]};
         }
         doSearch();
       }catch(e){toast('取消失败: '+e.message,'error');isCancelling.value=false;}

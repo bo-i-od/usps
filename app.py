@@ -30,7 +30,7 @@ _track_states = {}
 
 def _get_track_state(user_id):
     if user_id not in _track_states:
-        _track_states[user_id] = {"running": False, "total": 0, "done": 0, "ok": 0, "errors": 0, "failed_numbers": [], "cancel_requested": False}
+        _track_states[user_id] = {"running": False, "total": 0, "done": 0, "ok": 0, "errors": 0, "failed_numbers": [], "cancel_requested": False, "generation": 0}
     return _track_states[user_id]
 
 
@@ -73,10 +73,15 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
     state = _get_track_state(user_id)
     total = len(numbers)
     with _track_lock:
+        state["generation"] += 1
+        my_gen = state["generation"]
         state.update(running=True, total=total, done=0, ok=0, errors=0, failed_numbers=[], cancel_requested=False)
 
     batches = [numbers[i:i + BATCH_SIZE] for i in range(0, total, BATCH_SIZE)]
-    print(f"  [bg] User {user_id}: Total: {total}, {len(batches)} batch(es), mode={browser_mode}")
+    print(f"  [bg] User {user_id}: Total: {total}, {len(batches)} batch(es), mode={browser_mode}, gen={my_gen}")
+
+    def _is_stale():
+        return state["generation"] != my_gen
 
     try:
         if browser_mode == BROWSER_MODE_BIT:
@@ -88,7 +93,8 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
     except Exception as e:
         print(f"  [bg] Failed to start browser: {e}")
         with _track_lock:
-            state.update(running=False, done=total, errors=total, failed_numbers=list(numbers))
+            if not _is_stale():
+                state.update(running=False, done=total, errors=total, failed_numbers=list(numbers))
         return
 
     try:
@@ -99,6 +105,9 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
 
         for bi, batch in enumerate(batches):
             with _track_lock:
+                if _is_stale():
+                    print(f"  [bg] gen={my_gen} superseded, exiting")
+                    break
                 if state["cancel_requested"]:
                     remaining_numbers = []
                     for b in batches[bi:]:
@@ -114,6 +123,11 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
             print(f"  [bg] Batch {bi + 1}/{len(batches)} ({len(batch)} numbers)")
             batch_results = track_batch(driver, batch)
 
+            with _track_lock:
+                if _is_stale():
+                    print(f"  [bg] gen={my_gen} superseded after batch, exiting")
+                    break
+
             batch_ok = []
             for r in batch_results:
                 if r.get("error"):
@@ -128,7 +142,8 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
             ok_count += len(batch_ok)
             err_count += len(batch) - len(batch_ok)
             with _track_lock:
-                state.update(done=done, ok=ok_count, errors=err_count)
+                if not _is_stale():
+                    state.update(done=done, ok=ok_count, errors=err_count)
 
             if bi < len(batches) - 1:
                 time.sleep(BATCH_INTERVAL)
@@ -137,6 +152,8 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
             if not retry_queue:
                 break
             with _track_lock:
+                if _is_stale():
+                    break
                 if state["cancel_requested"]:
                     fail_results = [{"tracking_number": tn, "error": "Cancelled by user", "data": None} for tn in retry_queue]
                     if fail_results:
@@ -151,6 +168,9 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
             next_retry = []
             for bi, batch in enumerate(retry_batches):
                 batch_results = track_batch(driver, batch, timeout=retry_timeout)
+                with _track_lock:
+                    if _is_stale():
+                        break
                 batch_ok = []
                 for r in batch_results:
                     if r.get("error"):
@@ -162,18 +182,18 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
                 ok_count += len(batch_ok)
                 err_count = err_count - len(batch_ok)
                 with _track_lock:
-                    state.update(ok=ok_count, errors=total - ok_count)
+                    if not _is_stale():
+                        state.update(ok=ok_count, errors=total - ok_count)
                 if bi < len(retry_batches) - 1:
                     time.sleep(BATCH_INTERVAL)
             retry_queue = next_retry
 
-        if not state["cancel_requested"]:
-            if retry_queue:
-                print(f"  [bg] {len(retry_queue)} still failed")
-                fail_results = [{"tracking_number": tn, "error": "Failed after retries", "data": None} for tn in retry_queue]
-                parcel_store.apply_track_results_for_user(user_id, fail_results)
-
-            with _track_lock:
+        with _track_lock:
+            if not _is_stale() and not state["cancel_requested"]:
+                if retry_queue:
+                    print(f"  [bg] {len(retry_queue)} still failed")
+                    fail_results = [{"tracking_number": tn, "error": "Failed after retries", "data": None} for tn in retry_queue]
+                    parcel_store.apply_track_results_for_user(user_id, fail_results)
                 state["failed_numbers"] = list(retry_queue)
 
     except Exception as e:
@@ -187,7 +207,10 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
         except Exception:
             pass
         with _track_lock:
-            state["running"] = False
+            if not _is_stale():
+                state["running"] = False
+            else:
+                print(f"  [bg] gen={my_gen} stale, not clearing running state")
 
 
 # ─── Pages ───
@@ -487,16 +510,6 @@ def api_parcels_refresh():
     with _track_lock:
         if state["running"] and not state["cancel_requested"]:
             return jsonify({"error": "Tracking already in progress"}), 409
-
-    for _ in range(50):
-        with _track_lock:
-            if not state["running"]:
-                break
-        time.sleep(0.1)
-    else:
-        with _track_lock:
-            if state["running"]:
-                return jsonify({"error": "Previous tracking still stopping"}), 409
 
     data = request.get_json(force=True)
     nums = data.get("tracking_numbers", [])
