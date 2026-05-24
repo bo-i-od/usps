@@ -74,15 +74,34 @@ def _map_status(usps_status: str) -> Tuple[str, str]:
 
 
 def _parse_event_time(date_str: str) -> Optional[str]:
-    """Try to parse USPS date string into ISO format."""
+    """Try to parse USPS date string into ISO format.
+    
+    Handles formats like:
+      "April 14, 2026 1:29 PM"
+      "April 14, 2026, 1:29 PM"
+      "March 20, 2026 11:50 AM"
+      "April 4, 2026"  (date only)
+    """
     if not date_str:
         return None
+    s = date_str.strip()
     for fmt in ("%B %d, %Y, %I:%M %p", "%B %d, %Y %I:%M %p",
-                "%B %d, %Y", "%b %d, %Y, %I:%M %p", "%b %d, %Y"):
+                "%B %d, %Y, %I:%M%p", "%B %d, %Y %I:%M%p",
+                "%B %d, %Y", "%b %d, %Y, %I:%M %p", "%b %d, %Y %I:%M %p",
+                "%b %d, %Y"):
         try:
-            return datetime.strptime(date_str.strip(), fmt).strftime("%Y-%m-%dT%H:%M:%S")
+            return datetime.strptime(s, fmt).strftime("%Y-%m-%dT%H:%M:%S")
         except ValueError:
             continue
+    # Fallback: try regex extraction for malformed time strings
+    m = re.match(r"(\w+ \d{1,2}, \d{4})\s*,?\s*(\d{1,2}:\d{2}\s*[AaPp][Mm])", s)
+    if m:
+        combined = f"{m.group(1)}, {m.group(2)}"
+        for fmt in ("%B %d, %Y, %I:%M %p", "%B %d, %Y %I:%M %p"):
+            try:
+                return datetime.strptime(combined, fmt).strftime("%Y-%m-%dT%H:%M:%S")
+            except ValueError:
+                continue
     return None
 
 
@@ -235,7 +254,7 @@ def apply_track_results(results: List[dict]):
         raw_events = data.get("events") or []
         parsed_events = []
         for ev in raw_events:
-            t = _parse_event_time(ev.get("date", ""))
+            t = _parse_event_time(ev.get("time", ""))
             parsed_events.append({
                 "time": t,
                 "description": ev.get("description", ""),
@@ -245,8 +264,15 @@ def apply_track_results(results: List[dict]):
         if parsed_events:
             p["events"] = parsed_events
             p["latest_event"] = parsed_events[0].get("description")
-            if parsed_events[0].get("time") and not p.get("shipped_at"):
-                p["shipped_at"] = parsed_events[-1].get("time")
+            # shipped_at: use the earliest event time (last in list = oldest)
+            if parsed_events[-1].get("time"):
+                p["shipped_at"] = parsed_events[-1]["time"]
+            elif not p.get("shipped_at") or not p["shipped_at"]:
+                # fallback: try to parse existing non-ISO shipped_at
+                if p.get("shipped_at"):
+                    iso = _parse_event_time(p["shipped_at"])
+                    if iso:
+                        p["shipped_at"] = iso
 
             for ev in parsed_events:
                 desc = ev.get("description", "").lower()
@@ -271,6 +297,73 @@ def apply_track_results(results: List[dict]):
         p["aging"] = _calc_aging(p)
 
     _save(parcels)
+
+
+def repair_existing_data():
+    """One-time repair: fix event times, shipped_at, delivered_at, and aging
+    for parcels that were saved before the time-parsing bug was fixed.
+    
+    The bug was: apply_track_results used ev.get("date") instead of ev.get("time"),
+    so all event times were null. This also caused shipped_at/delivered_at to be
+    stored as raw USPS strings or null, and aging to all be null.
+    """
+    parcels = _load()
+    changed = 0
+    for p in parcels:
+        raw = p.get("raw") or {}
+        raw_data = raw.get("data") if isinstance(raw, dict) else None
+        if not raw_data:
+            continue
+
+        raw_events = raw_data.get("events") or []
+        if not raw_events:
+            continue
+
+        # Re-parse event times from raw data
+        parsed_events = []
+        for ev in raw_events:
+            t = _parse_event_time(ev.get("time", ""))
+            parsed_events.append({
+                "time": t,
+                "description": ev.get("description", ""),
+                "location": ev.get("location", ""),
+            })
+
+        # Only update if we successfully parsed at least some times
+        has_times = any(ev["time"] for ev in parsed_events)
+        if not has_times:
+            continue
+
+        p["events"] = parsed_events
+        p["latest_event"] = parsed_events[0].get("description")
+
+        # Fix shipped_at: convert raw string to ISO, or use earliest event
+        if parsed_events[-1].get("time"):
+            p["shipped_at"] = parsed_events[-1]["time"]
+        elif p.get("shipped_at"):
+            iso = _parse_event_time(p["shipped_at"])
+            if iso:
+                p["shipped_at"] = iso
+
+        # Fix delivered_at for delivered parcels
+        if p.get("main_status") == "签收成功" and parsed_events[0].get("time"):
+            p["delivered_at"] = parsed_events[0]["time"]
+            p["delivery_event"] = parsed_events[0].get("description")
+
+        # Fix online_event
+        for ev in parsed_events:
+            desc = ev.get("description", "").lower()
+            if "accepted" in desc or "departed" in desc or "label created" in desc:
+                p["online_event"] = ev.get("description")
+                break
+
+        # Recalculate aging
+        p["aging"] = _calc_aging(p)
+        changed += 1
+
+    if changed:
+        _save(parcels)
+    return changed
 
 
 def delete_parcels(tracking_numbers: List[str]) -> int:
