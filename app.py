@@ -17,7 +17,7 @@ from usps_direct_tracker import (
     get_webdriver, get_webdriver_bit, track_batch,
     BATCH_SIZE, MAX_RETRY, BATCH_TIMEOUT,
     BROWSER_MODE_LOCAL, BROWSER_MODE_BIT,
-    cleanup_and_close_bit,
+    cleanup_bit_tabs,
 )
 
 BATCH_INTERVAL = 5
@@ -202,10 +202,12 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
         with _track_lock:
             stale = _is_stale()
         try:
-            if stale and browser_mode == BROWSER_MODE_BIT:
-                print(f"  [bg] gen={my_gen} stale, skipping Bit browser close (reused by new session)")
-            elif browser_mode == BROWSER_MODE_BIT:
-                cleanup_and_close_bit(driver, bit_browser_id)
+            if browser_mode == BROWSER_MODE_BIT:
+                if not stale:
+                    cleanup_bit_tabs(driver)
+                    print(f"  [bg] gen={my_gen} done, tabs cleaned (browser kept open)")
+                else:
+                    print(f"  [bg] gen={my_gen} stale, skipping cleanup (reused by new session)")
             else:
                 driver.quit()
         except Exception:

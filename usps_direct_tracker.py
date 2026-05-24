@@ -66,8 +66,8 @@ def _bit_close_browser(browser_id: str):
         print(f"    -> Warning: failed to close Bit browser: {e}")
 
 
-def cleanup_and_close_bit(driver, browser_id: str):
-    """关闭所有页签后再关闭 Bit 浏览器窗口，确保无残留"""
+def cleanup_bit_tabs(driver):
+    """清理所有页签只保留一个空白页，不关闭浏览器"""
     try:
         handles = driver.window_handles
         if handles:
@@ -77,7 +77,12 @@ def cleanup_and_close_bit(driver, browser_id: str):
             driver.switch_to.window(handles[0])
             driver.get("about:blank")
     except Exception as e:
-        print(f"    -> Tab cleanup before close warning: {e}")
+        print(f"    -> Tab cleanup warning: {e}")
+
+
+def cleanup_and_close_bit(driver, browser_id: str):
+    """关闭所有页签后再关闭 Bit 浏览器窗口，确保无残留"""
+    cleanup_bit_tabs(driver)
     _bit_close_browser(browser_id)
 
 
