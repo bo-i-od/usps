@@ -30,7 +30,7 @@ _track_states = {}
 
 def _get_track_state(user_id):
     if user_id not in _track_states:
-        _track_states[user_id] = {"running": False, "total": 0, "done": 0, "ok": 0, "errors": 0, "failed_numbers": []}
+        _track_states[user_id] = {"running": False, "total": 0, "done": 0, "ok": 0, "errors": 0, "failed_numbers": [], "cancel_requested": False}
     return _track_states[user_id]
 
 
@@ -73,7 +73,7 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
     state = _get_track_state(user_id)
     total = len(numbers)
     with _track_lock:
-        state.update(running=True, total=total, done=0, ok=0, errors=0, failed_numbers=[])
+        state.update(running=True, total=total, done=0, ok=0, errors=0, failed_numbers=[], cancel_requested=False)
 
     batches = [numbers[i:i + BATCH_SIZE] for i in range(0, total, BATCH_SIZE)]
     print(f"  [bg] User {user_id}: Total: {total}, {len(batches)} batch(es), mode={browser_mode}")
@@ -98,6 +98,19 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
         err_count = 0
 
         for bi, batch in enumerate(batches):
+            with _track_lock:
+                if state["cancel_requested"]:
+                    remaining_numbers = []
+                    for b in batches[bi:]:
+                        remaining_numbers.extend(b)
+                    remaining_numbers.extend(retry_queue)
+                    fail_results = [{"tracking_number": tn, "error": "Cancelled by user", "data": None} for tn in remaining_numbers]
+                    if fail_results:
+                        parcel_store.apply_track_results_for_user(user_id, fail_results)
+                    state["failed_numbers"] = list(remaining_numbers)
+                    state.update(done=total, errors=err_count + len(remaining_numbers))
+                    break
+
             print(f"  [bg] Batch {bi + 1}/{len(batches)} ({len(batch)} numbers)")
             batch_results = track_batch(driver, batch)
 
@@ -123,6 +136,15 @@ def _bg_track_incremental(user_id, numbers, browser_mode=BROWSER_MODE_LOCAL, bit
         for attempt in range(1, MAX_RETRY + 1):
             if not retry_queue:
                 break
+            with _track_lock:
+                if state["cancel_requested"]:
+                    fail_results = [{"tracking_number": tn, "error": "Cancelled by user", "data": None} for tn in retry_queue]
+                    if fail_results:
+                        parcel_store.apply_track_results_for_user(user_id, fail_results)
+                    state["failed_numbers"] = list(retry_queue)
+                    state.update(done=total, errors=total - ok_count)
+                    retry_queue = []
+                    break
             retry_timeout = int(BATCH_TIMEOUT * (1.5 ** attempt))
             print(f"  [bg] Retry {attempt}/{MAX_RETRY} — {len(retry_queue)} numbers, timeout {retry_timeout}s")
             retry_batches = [retry_queue[i:i + BATCH_SIZE] for i in range(0, len(retry_queue), BATCH_SIZE)]
@@ -442,6 +464,18 @@ def api_track_status():
     state = _get_track_state(g.current_user["id"])
     with _track_lock:
         return jsonify(dict(state))
+
+
+@app.route("/api/parcels/track_cancel", methods=["POST"])
+@login_required
+def api_track_cancel():
+    user_id = g.current_user["id"]
+    state = _get_track_state(user_id)
+    with _track_lock:
+        if not state["running"]:
+            return jsonify({"ok": False, "error": "No tracking in progress"}), 400
+        state["cancel_requested"] = True
+    return jsonify({"ok": True})
 
 
 @app.route("/api/parcels/refresh", methods=["POST"])

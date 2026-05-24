@@ -178,6 +178,8 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
 .track-result-pct{font-size:14px;font-weight:700;flex-shrink:0}
 .track-result-close{margin-left:auto;background:none;border:none;cursor:pointer;color:#999;font-size:18px;padding:0 4px;flex-shrink:0}
 .track-result-close:hover{color:var(--color-danger)}
+.track-cancel-btn{background:none;border:none;cursor:pointer;color:#999;font-size:16px;font-weight:700;padding:0 2px;line-height:1;margin-left:2px;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;transition:all .15s}
+.track-cancel-btn:hover{color:#fff;background:var(--color-danger)}
 @keyframes trackSlideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
 
 /* Login page */
@@ -407,7 +409,7 @@ input[type="checkbox"]{accent-color:var(--color-primary);cursor:pointer}
         查询全部
       </button>
       <span style="margin-left:8px">找到 <span class="text-count">{{totalCount}}</span> 条</span>
-      <span v-if="trackingProgress" style="margin-left:8px;color:var(--color-primary);font-size:12px;display:inline-flex;align-items:center;gap:4px"><span class="dot-spinner dot-spinner-sm"></span>{{trackingProgress}}</span>
+      <span v-if="trackingProgress" style="margin-left:8px;color:var(--color-primary);font-size:12px;display:inline-flex;align-items:center;gap:4px"><span class="dot-spinner dot-spinner-sm"></span>{{trackingProgress}}<button class="track-cancel-btn" @click="cancelTracking" title="取消查询">&times;</button></span>
       <div style="flex:1"></div>
       <div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-right:8px">
         <label style="white-space:nowrap;color:var(--color-text-secondary)">浏览器</label>
@@ -1078,6 +1080,13 @@ const app=createApp({
       }catch(e){trackingProgress.value='';_queryingMap.value={};toast('重试失败: '+e.message,'error');}
     };
 
+    const cancelTracking=async()=>{
+      try{
+        await apiFetch('/api/parcels/track_cancel',{method:'POST'});
+        trackingProgress.value='正在取消...';
+      }catch(e){toast('取消失败: '+e.message,'error')}
+    };
+
     const _buildFilterParams=()=>{
       const params=new URLSearchParams({page:1,page_size:99999,sort_field:sortField.value,sort_order:sortOrder.value});
       if(filters.shippedFrom)params.set('shipped_at_from',filters.shippedFrom);
@@ -1201,7 +1210,7 @@ const app=createApp({
       calMonth,calDayClass,onCalClick,shippedRangeText,deliveredRangeText,openDatePanel,clearDateRange,setDateShortcut2,
       toasts,toast,
       browserMode,bitBrowserId,
-      showImport,importText,importing,importCount,importEstimate,checkImportCost,trackingProgress,queryStartedAt,isQuerying,lastTrackResult,trackResultPct,retryFailed,
+      showImport,importText,importing,importCount,importEstimate,checkImportCost,trackingProgress,queryStartedAt,isQuerying,lastTrackResult,trackResultPct,retryFailed,cancelTracking,
       showExport,exportCols,exporting,exportAllCols,toggleExportAll,toggleExportCol,
       overlayMD,remarkModal,editRemark,saveRemark,
       allChecked,toggleAll,toggleSelect,visiblePages,
